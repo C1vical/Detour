@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE / local tooling
+.idea/
+.mcp.json
+
+# generated demo images and OSMnx HTTP cache (backend/cache/ IS committed)
+/*.png
+/cache/
