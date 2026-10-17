@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Detour | Walk the cool way.",
   description: "Heat-aware walking navigation for York University's Keele Campus.",
+  icons: {
+    icon: { url: "/detour-icon.png", type: "image/png" },
+    apple: "/detour-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

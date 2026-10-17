@@ -89,25 +89,31 @@ body {
   min-width: 0;
 }
 
-.logo-mark {
-  color: var(--orange);
-  flex: none;
-  height: 24px;
-  width: 24px;
-}
-
 .brand-text {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   gap: var(--s3);
 }
 
-.brand h1 {
-  color: var(--white);
-  font-size: 1.1rem;
-  font-weight: 750;
-  letter-spacing: -0.03em;
+/* The wordmark PNG (2048x925) has a wide transparent margin. Crop to the
+   logo plus a little of that margin (x 180-1860, y 180-744) by scaling the
+   image inside a fixed-ratio box; the asset is not altered. */
+.wordmark {
+  aspect-ratio: 1680 / 564;
+  flex: none;
+  height: 30px;
   margin: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.wordmark img {
+  height: auto;
+  left: -10.714%;
+  max-width: none;
+  position: absolute;
+  top: -31.915%;
+  width: 121.905%;
 }
 
 .slogan {
@@ -835,13 +841,13 @@ body {
   }
 
   .brand-text {
+    align-items: flex-start;
     flex-direction: column;
-    gap: 0;
+    gap: 2px;
   }
 
-  .brand h1 {
-    font-size: 1rem;
-    line-height: 1.1;
+  .wordmark {
+    height: 22px;
   }
 
   .slogan {
