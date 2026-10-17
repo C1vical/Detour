@@ -127,6 +127,54 @@ body {
   z-index: 400;
 }
 
+.route-hint {
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
+}
+
+.pin-controls {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.pin-controls button {
+  background: transparent;
+  border: 1px solid #a9dbc0;
+  border-radius: 0.4rem;
+  color: inherit;
+  cursor: pointer;
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.pin-controls button[aria-pressed="true"] {
+  background: #a9dbc0;
+  color: #12352f;
+  font-weight: 700;
+}
+
+.pin-controls button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.pin {
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
+  height: 22px;
+  width: 22px;
+}
+
+.pin-start {
+  background: #1f6fd1;
+}
+
+.pin-end {
+  background: #d1342f;
+}
+
 .route-panel label {
   display: block;
   font-size: 0.85rem;

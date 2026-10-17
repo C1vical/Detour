@@ -1,14 +1,16 @@
 "use client";
 
 import type { GeoJsonObject } from "geojson";
+import L from "leaflet";
 import { useEffect, useState } from "react";
 import {
-  CircleMarker,
   GeoJSON,
   MapContainer,
+  Marker,
   ScaleControl,
   TileLayer,
   Tooltip,
+  useMapEvents,
   ZoomControl,
 } from "react-leaflet";
 
@@ -32,7 +34,24 @@ type RouteResponse = {
   sun_percent_change: number;
 };
 
-type Data = { route: RouteResponse; shadows: GeoJsonObject };
+type LatLon = [number, number];
+type PinKind = "start" | "end";
+
+const pinIcon = (kind: PinKind) =>
+  L.divIcon({
+    className: "",
+    html: `<div class="pin pin-${kind}"></div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+const PIN_ICONS = { start: pinIcon("start"), end: pinIcon("end") };
+
+function ClickToPlace({ onPick }: { onPick: (p: LatLon) => void }) {
+  useMapEvents({ click: (e) => onPick([e.latlng.lat, e.latlng.lng]) });
+  return null;
+}
+
+type Data = { key: string; route: RouteResponse; shadows: GeoJsonObject };
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const minutesToTime = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
@@ -49,8 +68,13 @@ export default function CampusMap() {
   const [minutes, setMinutes] = useState(14 * 60);
   const [wSun, setWSun] = useState(3);
   const [cloud, setCloud] = useState(0);
+  const [start, setStart] = useState<LatLon | null>(null);
+  const [end, setEnd] = useState<LatLon | null>(null);
+  const [placing, setPlacing] = useState<PinKind>("start");
   const [data, setData] = useState<Data | null>(null);
   const [status, setStatus] = useState("Loading...");
+
+  const routeKey = `${date}-${minutes}-${wSun}-${cloud}-${start}-${end}`;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -62,6 +86,14 @@ export default function CampusMap() {
         w_sun: String(wSun),
         cloud_cover: String(cloud),
       });
+      if (start) {
+        route.set("from_lat", String(start[0]));
+        route.set("from_lon", String(start[1]));
+      }
+      if (end) {
+        route.set("to_lat", String(end[0]));
+        route.set("to_lon", String(end[1]));
+      }
       const shadows = new URLSearchParams({ date, time });
       setStatus("Loading...");
       try {
@@ -69,14 +101,19 @@ export default function CampusMap() {
           const res = await fetch(`${API_URL}${path}`, {
             signal: controller.signal,
           });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (!res.ok) {
+            const body = await res.json().catch(() => null);
+            throw new Error(
+              typeof body?.detail === "string" ? body.detail : `HTTP ${res.status}`,
+            );
+          }
           return res.json();
         };
         const [r, s] = await Promise.all([
           get(`/route?${route}`),
           get(`/shadows?${shadows}`),
         ]);
-        setData({ route: r, shadows: s });
+        setData({ key: routeKey, route: r, shadows: s });
         setStatus("");
       } catch (e) {
         if (controller.signal.aborted) return;
@@ -87,9 +124,24 @@ export default function CampusMap() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [date, minutes, wSun, cloud]);
+  }, [date, minutes, wSun, cloud, start, end, routeKey]);
 
   const r = data?.route;
+  const startPos = start ?? r?.origin;
+  const endPos = end ?? r?.destination;
+  const place = (kind: PinKind, p: LatLon) => {
+    if (kind === "start") setStart(p);
+    else setEnd(p);
+  };
+  const pick = (p: LatLon) => {
+    place(placing, p);
+    setPlacing(placing === "start" ? "end" : "start");
+  };
+  const reset = () => {
+    setStart(null);
+    setEnd(null);
+    setPlacing("start");
+  };
 
   return (
     <>
@@ -111,29 +163,67 @@ export default function CampusMap() {
               data={data.shadows}
               style={{ color: "#222", weight: 0, fillOpacity: 0.35 }}
             />
+            {data.key === routeKey && (
+              <>
             <GeoJSON
-              key={`fast-${date}-${minutes}-${wSun}-${cloud}`}
+              key={`fast-${routeKey}`}
               data={data.route.fastest.geometry}
               style={{ color: "#d1342f", weight: 5, opacity: 0.85 }}
             />
             <GeoJSON
-              key={`ctx-${date}-${minutes}-${wSun}-${cloud}`}
+              key={`ctx-${routeKey}`}
               data={data.route.contextroute.geometry}
               style={{ color: "#1f8f3a", weight: 5, opacity: 0.9 }}
             />
-            <CircleMarker center={data.route.origin} radius={8}>
-              <Tooltip>Start</Tooltip>
-            </CircleMarker>
-            <CircleMarker center={data.route.destination} radius={8}>
-              <Tooltip>End</Tooltip>
-            </CircleMarker>
+              </>
+            )}
           </>
         )}
+        <ClickToPlace onPick={pick} />
+        {(["start", "end"] as const).map((kind) => {
+          const pos = kind === "start" ? startPos : endPos;
+          return (
+            pos && (
+              <Marker
+                key={kind}
+                position={pos}
+                icon={PIN_ICONS[kind]}
+                draggable
+                eventHandlers={{
+                  dragend: (e) => {
+                    const ll = e.target.getLatLng();
+                    place(kind, [ll.lat, ll.lng]);
+                  },
+                }}
+              >
+                <Tooltip>{kind === "start" ? "Start" : "End"}</Tooltip>
+              </Marker>
+            )
+          );
+        })}
         <ZoomControl position="topright" />
         <ScaleControl position="bottomleft" />
       </MapContainer>
 
       <aside className="route-panel">
+        <p className="route-hint">
+          Click the map to place the {placing} pin, or drag a pin to move it.
+        </p>
+        <div className="pin-controls">
+          {(["start", "end"] as const).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              aria-pressed={placing === kind}
+              onClick={() => setPlacing(kind)}
+            >
+              Set {kind}
+            </button>
+          ))}
+          <button type="button" onClick={reset} disabled={!start && !end}>
+            Reset
+          </button>
+        </div>
         <label>
           Date
           <input

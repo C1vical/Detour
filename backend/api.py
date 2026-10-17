@@ -5,7 +5,7 @@ Interactive docs:          http://localhost:8000/docs
 Demo page (no Next needed): http://localhost:8000/demo
 
 Endpoints
-    GET /route    fastest route vs ContextRoute for the fixed demo trip, at a given date/time
+    GET /route    fastest route vs ContextRoute (demo trip by default, or between clicked points), at a given date/time
     GET /shadows  building shadows (GeoJSON) at a given date/time, to draw on the map
     GET /health
 
@@ -36,6 +36,8 @@ from .trip import DEST, ORIGIN, nearest_node
 TZ = ZoneInfo("America/Toronto")
 STATIC_DIR = Path(__file__).parent / "static"
 _transformer = Transformer.from_crs(METRIC_CRS, "EPSG:4326", always_xy=True)
+_to_metric = Transformer.from_crs("EPSG:4326", METRIC_CRS, always_xy=True)
+MAX_SNAP_M = 150.0  # a clicked point farther than this from any path is rejected
 
 
 def _to_wgs84(geom):
@@ -125,6 +127,16 @@ def _model_for(when: datetime, cloud_cover: float) -> ExposureModel:
     return model
 
 
+def _snap(name: str, latlon: tuple[float, float]) -> int:
+    """Nearest walk-graph node to a (lat, lon), or 422 if the point is off the network."""
+    node = nearest_node(state.data.graph, latlon)
+    x, y = _to_metric.transform(latlon[1], latlon[0])
+    nd = state.data.graph.nodes[node]
+    if np.hypot(nd["x"] - x, nd["y"] - y) > MAX_SNAP_M:
+        raise HTTPException(422, f"{name} is too far from any walkable path")
+    return node
+
+
 def _route_geometry(model: ExposureModel, result: RouteResult) -> dict:
     coords: list[tuple[float, float]] = []
     for ei in result.edges:
@@ -156,11 +168,21 @@ def get_route(
     time: Time | None = Query(None, description="HH:MM, 24 h (default: now)"),
     w_sun: float = Query(3.0, ge=0, le=50, description="Sun-avoidance weight; 0 = fastest route"),
     cloud_cover: float = Query(0.0, ge=0, le=1, description="0 clear sky .. 1 overcast"),
+    from_lat: float | None = Query(None, ge=-90, le=90, description="Start latitude (default: demo start)"),
+    from_lon: float | None = Query(None, ge=-180, le=180, description="Start longitude"),
+    to_lat: float | None = Query(None, ge=-90, le=90, description="End latitude (default: demo end)"),
+    to_lon: float | None = Query(None, ge=-180, le=180, description="End longitude"),
 ) -> RouteResponse:
+    if (from_lat is None) != (from_lon is None) or (to_lat is None) != (to_lon is None):
+        raise HTTPException(422, "give both lat and lon for each of from/to")
+    origin = ORIGIN if from_lat is None else (from_lat, from_lon)
+    dest = DEST if to_lat is None else (to_lat, to_lon)
+    origin_node = state.origin if from_lat is None else _snap("start", origin)
+    dest_node = state.dest if to_lat is None else _snap("end", dest)
     when = _parse_when(date, time)
     model = _model_for(when, cloud_cover)
     try:
-        fast, ctx = compare(model, state.origin, state.dest, when, w_sun)
+        fast, ctx = compare(model, origin_node, dest_node, when, w_sun)
     except NoRouteError as exc:
         raise HTTPException(404, str(exc))
     sun = model.sun.position(when)
@@ -170,8 +192,8 @@ def get_route(
         cloud_cover=cloud_cover,
         sun=SunOut(elevation_deg=round(sun.elevation, 2), azimuth_deg=round(sun.azimuth, 2),
                    is_daylight=sun.is_up),
-        origin=ORIGIN,
-        destination=DEST,
+        origin=origin,
+        destination=dest,
         fastest=_route_out(model, fast),
         contextroute=_route_out(model, ctx),
         extra_seconds=round(ctx.seconds - fast.seconds, 1),

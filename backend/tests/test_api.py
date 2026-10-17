@@ -52,3 +52,17 @@ def test_shadows_geojson(client):
     assert j["type"] == "FeatureCollection" and len(j["features"]) == 1
     night = client.get("/shadows", params={"date": "2026-12-21", "time": "02:00"}).json()
     assert night["features"] == []
+
+
+def test_custom_endpoints(client):
+    p = {"date": "2026-06-21", "time": "14:00", "from_lat": 43.7735, "from_lon": -79.5019,
+         "to_lat": 43.7790, "to_lon": -79.4960}
+    j = client.get("/route", params=p).json()
+    assert j["origin"] == [43.7735, -79.5019] and j["destination"] == [43.779, -79.496]
+    assert j["fastest"]["geometry"]["type"] == "LineString"
+
+
+def test_endpoint_validation(client):
+    assert client.get("/route", params={"from_lat": 43.77}).status_code == 422  # lon missing
+    far = {"to_lat": 44.5, "to_lon": -79.0}
+    assert client.get("/route", params=far).status_code == 422  # off the network
