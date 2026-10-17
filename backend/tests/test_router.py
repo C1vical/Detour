@@ -10,6 +10,7 @@ from shapely.geometry import box
 from backend.data import CACHE_DIR, CAMPUS_CENTER, METRIC_CRS, CampusData, load_campus
 from backend.exposure import ExposureModel, SunSchedule
 from backend.router import NoRouteError, route
+from backend.walking import travel_time_seconds
 
 TZ = ZoneInfo("America/Toronto")
 # Near solar noon at York on 21 June (sun in the south, ~66 deg elevation).
@@ -53,7 +54,7 @@ def test_fastest_route_goes_direct(toy):
     model, ids = toy
     r = route(model, ids["A"], ids["B"], NOON, w_sun=0.0)
     assert r.nodes == [ids["A"], ids["B"]]
-    assert r.seconds == pytest.approx(100 / 1.4)
+    assert r.seconds == pytest.approx(travel_time_seconds(100.0, 0.0))
 
 
 def test_sun_weight_prefers_shaded_detour(toy):

@@ -28,7 +28,7 @@ uvicorn backend.api:app --reload --port 8000
  └───────────────────────┘                                             └────────────────────────┘
 ```
 
-The frontend never does routing or sun math. It sends the date, time and weights, and draws what comes back.
+The frontend never does routing, sun math, or grade calculations. It sends the date, time and weights, and draws what comes back.
 The backend allows CORS from `http://localhost:3000`.
 
 ### `GET /route`
@@ -82,14 +82,17 @@ date/time -> sun position (pvlib) -> building shadows (ShadowCaster)
 |---|---|
 | `sun.py` | sun elevation/azimuth (pvlib) |
 | `shadow.py` | `L = h / tan(theta)`; building shadows by sweeping the footprint; tree canopy shadows |
-| `data.py` | OSM campus polygon, walk graph and trees; Toronto 3D Massing building heights (cached in `backend/cache/`) |
+| `data.py` | OSM campus polygon, walk graph and trees; Toronto 3D Massing buildings (cached in `backend/cache/`) |
+| `walking.py` | Surface-elevation assignment, signed grade, Tobler speed, and edge travel time |
 | `exposure.py` | per-edge shade fraction and sun-exposure integral |
 | `router.py` | A*/Dijkstra with the multi-objective cost |
 | `api.py` | FastAPI endpoints |
 
 ## Assumptions (for the judges' explanation)
 
-- Flat ground; building heights from the City of Toronto 3D Massing snapshot (`backend/data/`).
+- Building heights come from the City of Toronto 3D Massing snapshot (`backend/data/`).
+- Toronto 3D Massing `SURF_ELEV` is assigned to each walk node from its nearest massing footprint as a terrain-elevation proxy.
+- Directed edge grade is \(\Delta h / d\); speed uses Tobler's function \(6e^{-3.5|s+0.05|}\) km/h and travel time is horizontal edge length divided by the converted speed.
 - Shadows are not computed when the sun is below 3 degrees, and shadow length is capped at 300 m.
 - Shade fraction is measured at sample points 1.5 m apart along each edge, using the nearest 15-minute shadow.
   This matches exact geometry to within about 0.2% (length-weighted).

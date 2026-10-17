@@ -26,6 +26,7 @@ from shapely.geometry import LineString
 from .data import CampusData, building_list, tree_list
 from .shadow import ShadowCaster
 from .sun import SunPosition, sun_positions
+from .walking import MAX_TOBLER_SPEED_MPS, travel_time_seconds
 
 WALK_SPEED_MPS = 1.4
 SAMPLE_SPACING_M = 1.5  # spacing of shade sample points along an edge
@@ -42,6 +43,9 @@ class EdgeRef:
     v: int
     key: int
     length: float  # metres
+    grade: float
+    speed_mps: float
+    travel_time_s: float
 
 
 class SunSchedule:
@@ -78,7 +82,9 @@ class ExposureModel:
         self.graph = data.graph
         self.sun = sun
         self.slice_seconds = slice_seconds
-        self.speed = speed
+        # The heuristic must use an upper bound on Tobler's speed so A* stays
+        # admissible for every grade-adjusted edge.
+        self.speed = MAX_TOBLER_SPEED_MPS
         self._caster = ShadowCaster(building_list(data), tree_list(data))
         self._shade_cache: dict[int, np.ndarray] = {}
         self._shadow_cache: dict[int, shapely.Geometry] = {}
@@ -92,7 +98,14 @@ class ExposureModel:
                 nu, nv = data.graph.nodes[u], data.graph.nodes[v]
                 geom = LineString([(nu["x"], nu["y"]), (nv["x"], nv["y"])])
             self.edge_index[(u, v, k)] = len(self.edges)
-            self.edges.append(EdgeRef(u, v, k, float(a["length"])))
+            length = float(a["length"])
+            grade = float(a.get("grade", 0.0))
+            speed_mps = float(a.get("speed_mps", 0.0))
+            travel_time_s = float(a.get("travel_time_s", 0.0))
+            if speed_mps <= 0.0 or travel_time_s <= 0.0:
+                travel_time_s = travel_time_seconds(length, grade)
+                speed_mps = length / travel_time_s if travel_time_s else 0.0
+            self.edges.append(EdgeRef(u, v, k, length, grade, speed_mps, travel_time_s))
             lines.append(geom)
         self._lines = np.array(lines, dtype=object)
         self._geom_len = shapely.length(self._lines)
@@ -165,7 +178,8 @@ class ExposureModel:
     # --- exposure ----------------------------------------------------------
 
     def traversal_seconds(self, edge: int) -> float:
-        return self.edges[edge].length / self.speed
+        ref = self.edges[edge]
+        return ref.travel_time_s
 
     def sun_seconds(self, edge: int, enter: datetime) -> float:
         """S_e: trapezoid integral of I(t)(1-f) over the traversal starting at `enter`."""
