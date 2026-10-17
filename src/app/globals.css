@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 :root {
   --background: #ffffff;
@@ -20,7 +21,93 @@
 }
 
 body {
-  background: var(--background);
+  background: #eef3f1;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.map-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-header {
+  align-items: center;
+  background: #12352f;
+  color: #f5fbf7;
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+}
+
+.map-header h1 {
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin: 0.15rem 0 0;
+}
+
+.eyebrow {
+  color: #a9dbc0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.map-status {
+  color: #cce8d8;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.map-region {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.campus-map {
+  min-height: calc(100vh - 76px);
+  width: 100%;
+  z-index: 0;
+}
+
+.map-intro {
+  background: rgb(18 53 47 / 0.94);
+  border-radius: 0.75rem;
+  bottom: 1.5rem;
+  box-shadow: 0 0.75rem 2rem rgb(8 35 29 / 0.2);
+  color: #f5fbf7;
+  left: 1.5rem;
+  max-width: 20rem;
+  padding: 1rem 1.1rem;
+  position: absolute;
+  z-index: 400;
+}
+
+.map-intro p:last-child {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin: 0.45rem 0 0;
+}
+
+@media (max-width: 640px) {
+  .map-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .campus-map {
+    min-height: calc(100vh - 108px);
+  }
+
+  .map-intro {
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+  }
 }
