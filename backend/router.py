@@ -16,10 +16,10 @@ cost as in ordinary Dijkstra; strictly that is exact only if arriving earlier
 never makes the rest of the walk costlier. A walk lasts minutes while the sun
 moves slowly, so the approximation error is negligible here (note it in the docs).
 
-A* heuristic: h(n) = w_t * straight_line(n, goal) / v. S_e >= 0, so the true
-remaining cost is at least the time term, and the straight-line time is a lower
-bound on that. The heuristic is therefore admissible and consistent, so A*
-returns the same route as Dijkstra (h = 0) but expands fewer nodes.
+A* heuristic: h(n) = w_t * straight_line(n, goal) / v. For pure travel-time
+searches this is an admissible and consistent lower bound. When sun exposure
+is weighted, edge costs depend on arrival time, so the settling rule is not
+guaranteed to remain exact; those searches use Dijkstra ordering instead.
 """
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ def route(model: ExposureModel, origin: int, dest: int, start: datetime,
     gx, gy = g.nodes[dest]["x"], g.nodes[dest]["y"]
 
     def heuristic(n: int) -> float:
-        if not use_astar:
+        if not use_astar or w_sun:
             return 0.0
         nd = g.nodes[n]
         return w_time * math.hypot(nd["x"] - gx, nd["y"] - gy) / model.speed
@@ -76,19 +76,19 @@ def route(model: ExposureModel, origin: int, dest: int, start: datetime,
     best: dict[int, float] = {origin: 0.0}
     came: dict[int, tuple[int, int]] = {}      # node -> (prev node, edge idx)
     elapsed: dict[int, float] = {origin: 0.0}  # seconds since `start` at best label
-    heap = [(heuristic(origin), next(counter), origin)]
+    heap = [(heuristic(origin), 0.0, next(counter), origin)]
     settled: set[int] = set()
 
     while heap:
-        _, _, u = heapq.heappop(heap)
-        if u in settled:
+        _, cost_u, _, u = heapq.heappop(heap)
+        if cost_u != best.get(u):
             continue
         settled.add(u)
         if u == dest:
             break
         t_u = start + timedelta(seconds=elapsed[u])
         for v, parallel in g[u].items():
-            if (u, v) in closed or v in settled:
+            if (u, v) in closed:
                 continue
             for key in parallel:
                 ei = model.edge_index[(u, v, key)]
@@ -98,7 +98,7 @@ def route(model: ExposureModel, origin: int, dest: int, start: datetime,
                     best[v] = c
                     came[v] = (u, ei)
                     elapsed[v] = elapsed[u] + tau
-                    heapq.heappush(heap, (c + heuristic(v), next(counter), v))
+                    heapq.heappush(heap, (c + heuristic(v), c, next(counter), v))
 
     if dest not in settled:
         raise NoRouteError(f"no route from {origin} to {dest}")
