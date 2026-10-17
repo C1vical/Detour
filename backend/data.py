@@ -1,10 +1,8 @@
-"""Load York University (Keele campus) map data from OpenStreetMap via OSMnx.
+"""Load York University (Keele campus) map data and Toronto 3D Massing heights.
 
-The campus extent is the official OSM polygon "York University, Keele Campus"
-(way 15396822, ~1.9 km^2). The walk network is loaded for that polygon plus a
-small buffer so routes can start/end just outside it. Buildings and trees are
-loaded for a wider buffer (SHADOW_BUFFER_M) because off-campus buildings can
-cast shadows onto campus paths.
+The campus extent and pedestrian network come from OpenStreetMap via OSMnx.
+Building footprints and heights come from the City of Toronto's 2025 3D
+Massing WGS84 snapshot packaged under backend/data/.
 
 Everything is projected to a local metric CRS (UTM zone 17N, EPSG:32617) so
 x = east (m), y = north (m), matching the conventions in shadow.py.
@@ -19,10 +17,11 @@ from pathlib import Path
 import geopandas as gpd
 import networkx as nx
 import osmnx as ox
+import shapely
 from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 
-from .shadow import MAX_SHADOW_LENGTH_M, height_from_osm
+from .shadow import MAX_SHADOW_LENGTH_M
 
 CAMPUS_CENTER = (43.7735, -79.5019)  # (lat, lon) approx. Vari Hall; used for sun position
 CAMPUS_OSM_WAY = 15396822            # "York University, Keele Campus"
@@ -31,6 +30,8 @@ GRAPH_BUFFER_M = 100.0   # walk network extends this far past the campus boundar
 SHADOW_BUFFER_M = 300.0  # buildings this far out can shade campus (= MAX_SHADOW_LENGTH_M)
 
 CACHE_DIR = Path(__file__).parent / "cache"
+MASSING_FILE = Path(__file__).parent / "data" / "york_building_heights.geojson"
+MASSING_YEAR = 2025
 
 # Public Overpass mirrors, tried in order (the main one is often at capacity).
 OVERPASS_URLS = [
@@ -63,24 +64,27 @@ class CampusData:
     campus: BaseGeometry            # campus boundary polygon, metric CRS
 
 
-def _building_heights(raw: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    gdf = raw[raw.geometry.type.isin(["Polygon", "MultiPolygon"])].copy()
-    gdf = gdf.explode(index_parts=False)  # MultiPolygon -> Polygon rows
+def _load_massing_buildings() -> gpd.GeoDataFrame:
+    """Load packaged Toronto footprints and use MAX_HEIGHT for shadow envelopes."""
+    if not MASSING_FILE.exists():
+        raise FileNotFoundError(
+            f"Toronto 3D Massing snapshot is missing: {MASSING_FILE}. "
+            "Restore backend/data/york_building_heights.geojson before starting the backend."
+        )
 
-    def source(row) -> str:
-        if "height" in row and row["height"] == row["height"]:
-            return "height"
-        if "building:levels" in row and row["building:levels"] == row["building:levels"]:
-            return "levels"
-        return "type_default"
+    raw = gpd.read_file(MASSING_FILE)
+    required = {"MAX_HEIGHT", "HEIGHT_SRC", "geometry"}
+    missing = required - set(raw.columns)
+    if missing:
+        raise ValueError(f"Toronto 3D Massing snapshot is missing columns: {sorted(missing)}")
 
-    cols = [c for c in ("height", "building:levels", "building") if c in gdf.columns]
-    gdf["height_source"] = gdf.apply(source, axis=1)
-    gdf["height_m"] = [
-        height_from_osm({k: v for k, v in row.items() if k in cols and v == v})
-        for row in gdf[cols].to_dict("records")
-    ]
-    return gdf[["geometry", "height_m", "height_source"]].reset_index(drop=True)
+    buildings = raw[raw.geometry.type.isin(["Polygon", "MultiPolygon"])].copy()
+    buildings = buildings.explode(index_parts=False)
+    buildings.geometry = shapely.force_2d(buildings.geometry.array)
+    buildings["height_m"] = buildings["MAX_HEIGHT"].astype(float)
+    buildings["height_source"] = f"toronto_3d_massing_{MASSING_YEAR}"
+    buildings["height_data_source"] = buildings["HEIGHT_SRC"].fillna("unknown")
+    return buildings[["geometry", "height_m", "height_source", "height_data_source"]].to_crs(METRIC_CRS)
 
 
 def _fetch_campus_polygon() -> BaseGeometry:
@@ -92,13 +96,15 @@ def load_campus(refresh: bool = False) -> CampusData:
     """Download (or load from cache) the full Keele campus walk graph, buildings and trees."""
     CACHE_DIR.mkdir(exist_ok=True)
     graph_f, bld_f, tree_f, poly_f = (
-        CACHE_DIR / n for n in ("walk.graphml", "buildings.gpkg", "trees.gpkg", "campus.gpkg")
+        CACHE_DIR / n for n in ("walk.graphml", "toronto_buildings.gpkg", "trees.gpkg", "campus.gpkg")
     )
 
     if not refresh and all(f.exists() for f in (graph_f, bld_f, tree_f, poly_f)):
+        buildings = gpd.read_file(bld_f)
+        buildings.geometry = shapely.force_2d(buildings.geometry.array)
         return CampusData(
             ox.load_graphml(graph_f),
-            gpd.read_file(bld_f),
+            buildings,
             gpd.read_file(tree_f),
             gpd.read_file(poly_f).geometry.iloc[0],
         )
@@ -111,9 +117,8 @@ def load_campus(refresh: bool = False) -> CampusData:
     ))
     graph = ox.project_graph(graph, to_crs=METRIC_CRS)
 
+    buildings = _load_massing_buildings()
     shadow_zone = to_wgs84(campus.buffer(max(SHADOW_BUFFER_M, MAX_SHADOW_LENGTH_M)))
-    raw_buildings = _with_retries(lambda: ox.features_from_polygon(shadow_zone, tags={"building": True}))
-    buildings = _building_heights(raw_buildings.to_crs(METRIC_CRS))
 
     try:
         raw_trees = _with_retries(lambda: ox.features_from_polygon(shadow_zone, tags={"natural": "tree"}))

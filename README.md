@@ -33,6 +33,11 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to view the map.
 
+The backend uses the packaged City of Toronto 2025 3D Massing footprints and
+`MAX_HEIGHT` values for building shadows. OSM remains the source for the
+pedestrian network, campus boundary, and tree locations. See
+`backend/data/README.md` for dataset provenance.
+
 The production checks are:
 
 ```bash
