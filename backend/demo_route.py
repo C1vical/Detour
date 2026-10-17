@@ -8,27 +8,19 @@ import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import geopandas as gpd
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import osmnx as ox
 
-from .data import CAMPUS_CENTER, METRIC_CRS, building_list, load_campus
+from .data import CAMPUS_CENTER, building_list, load_campus
 from .exposure import ExposureModel, SunSchedule
 from .router import compare
 from .shadow import shadow_union
+from .trip import DEST, ORIGIN, nearest_node
 
 TZ = ZoneInfo("America/Toronto")
-# (lat, lon) of the demo trip: south-west of campus to the north-east.
-ORIGIN = (43.7715, -79.5100)
-DEST = (43.7790, -79.4960)
-
-
-def nearest_node(graph, latlon):
-    pt = gpd.GeoSeries.from_xy([latlon[1]], [latlon[0]], crs="EPSG:4326").to_crs(METRIC_CRS).iloc[0]
-    return ox.distance.nearest_nodes(graph, pt.x, pt.y)
 
 
 def fmt(seconds: float) -> str:

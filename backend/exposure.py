@@ -13,6 +13,7 @@ move slowly, so the shade fraction is computed on a coarse time grid
 """
 from __future__ import annotations
 
+import copy
 import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -24,10 +25,11 @@ import shapely
 from shapely.geometry import LineString
 
 from .data import CampusData, building_list
-from .shadow import shadow_union
+from .shadow import ShadowCaster
 from .sun import SunPosition, sun_positions
 
 WALK_SPEED_MPS = 1.4
+SAMPLE_SPACING_M = 1.5  # spacing of shade sample points along an edge
 
 
 def cloud_factor(cloud_cover: float) -> float:
@@ -78,8 +80,9 @@ class ExposureModel:
         self.sun = sun
         self.slice_seconds = slice_seconds
         self.speed = speed
-        self._buildings = building_list(data)
+        self._caster = ShadowCaster(building_list(data))
         self._shade_cache: dict[int, np.ndarray] = {}
+        self._shadow_cache: dict[int, shapely.Geometry] = {}
 
         self.edges: list[EdgeRef] = []
         self.edge_index: dict[tuple[int, int, int], int] = {}
@@ -94,12 +97,54 @@ class ExposureModel:
             lines.append(geom)
         self._lines = np.array(lines, dtype=object)
         self._geom_len = shapely.length(self._lines)
-        shapely.prepare(self._lines)
+        self._build_samples()
+
+    def _build_samples(self) -> None:
+        """Sample points along every edge: shade fraction = share of sample points in shadow."""
+        counts = np.maximum(2, np.ceil(self._geom_len / SAMPLE_SPACING_M)).astype(int)
+        self._sample_edge = np.repeat(np.arange(len(self._lines)), counts)
+        within = np.arange(counts.sum()) - np.repeat(np.cumsum(counts) - counts, counts)
+        frac = (within + 0.5) / np.repeat(counts, counts)
+        self._samples = shapely.line_interpolate_point(self._lines[self._sample_edge], frac, normalized=True)
+        self._sample_counts = counts
+
+    def with_sun(self, sun: SunSchedule) -> "ExposureModel":
+        """Cheap copy using another SunSchedule (e.g. other date/cloud cover).
+
+        Shares the edge tables and the shade cache: the shadow at a given instant
+        depends only on that instant, so cached slices stay valid across schedules.
+        """
+        other = copy.copy(self)
+        other.sun = sun
+        return other
+
+    def edge_line(self, edge: int) -> LineString:
+        """Edge geometry (metric CRS), oriented from edge.u to edge.v."""
+        line = self._lines[edge]
+        ref = self.edges[edge]
+        nu = self.graph.nodes[ref.u]
+        x0, y0 = line.coords[0]
+        if math.hypot(x0 - nu["x"], y0 - nu["y"]) > math.hypot(line.coords[-1][0] - nu["x"], line.coords[-1][1] - nu["y"]):
+            line = LineString(list(line.coords)[::-1])
+        return line
 
     # --- shade -------------------------------------------------------------
 
     def _slice(self, when: datetime) -> int:
         return int(round(when.timestamp() / self.slice_seconds))
+
+    def _position_for_slice(self, when: datetime) -> SunPosition:
+        slice_time = datetime.fromtimestamp(self._slice(when) * self.slice_seconds, tz=when.tzinfo)
+        return self.sun.position(slice_time)
+
+    def shadow_at(self, when: datetime):
+        """Combined building shadow polygon (metric CRS) for the time slice nearest `when`."""
+        key = self._slice(when)
+        shadow = self._shadow_cache.get(key)
+        if shadow is None:
+            shadow = self._caster.shadow(self._position_for_slice(when))
+            self._shadow_cache[key] = shadow
+        return shadow
 
     def shade_fractions(self, when: datetime) -> np.ndarray:
         """f(e) for every edge at the time slice nearest `when` (1 = fully shaded)."""
@@ -107,14 +152,14 @@ class ExposureModel:
         cached = self._shade_cache.get(key)
         if cached is not None:
             return cached
-        slice_time = datetime.fromtimestamp(key * self.slice_seconds, tz=when.tzinfo)
-        sun = self.sun.position(slice_time)
-        shadow = shadow_union(self._buildings, sun)
-        if shadow.is_empty:
+        pieces = self._caster.pieces(self._position_for_slice(when))
+        if len(pieces) == 0:
             frac = np.zeros(len(self.edges))
         else:
-            inside = shapely.length(shapely.intersection(self._lines, shadow))
-            frac = np.clip(inside / np.where(self._geom_len > 0, self._geom_len, 1.0), 0.0, 1.0)
+            hit = shapely.STRtree(pieces).query(self._samples, predicate="intersects")[0]
+            shaded = np.zeros(len(self._samples))
+            shaded[np.unique(hit)] = 1.0
+            frac = np.bincount(self._sample_edge, weights=shaded, minlength=len(self.edges)) / self._sample_counts
         self._shade_cache[key] = frac
         return frac
 

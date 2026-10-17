@@ -1,4 +1,6 @@
+fastapi==0.143.3
 geopandas==1.2.0
+httpx==0.28.1
 matplotlib==3.11.2
 networkx==3.7
 numpy==2.5.4
@@ -8,3 +10,4 @@ pvlib==0.16.1
 pyproj==3.8.0
 pytest==9.1.1
 shapely==2.2.0
+uvicorn==0.54.0
