@@ -111,3 +111,91 @@ body {
     right: 1rem;
   }
 }
+
+.route-panel {
+  background: rgb(18 53 47 / 0.94);
+  border-radius: 0.75rem;
+  box-shadow: 0 0.75rem 2rem rgb(8 35 29 / 0.2);
+  color: #f5fbf7;
+  left: 1.5rem;
+  max-height: calc(100% - 3rem);
+  overflow: auto;
+  padding: 1rem 1.1rem;
+  position: absolute;
+  top: 1.5rem;
+  width: 20rem;
+  z-index: 400;
+}
+
+.route-panel label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+}
+
+.route-panel label:first-child {
+  margin-top: 0;
+}
+
+.route-panel input {
+  display: block;
+  margin-top: 0.25rem;
+  width: 100%;
+}
+
+.route-panel input[type="date"] {
+  background: #f5fbf7;
+  border-radius: 0.25rem;
+  color: #12352f;
+  padding: 0.3rem;
+}
+
+.route-sun,
+.route-status {
+  color: #cce8d8;
+  font-size: 0.85rem;
+  margin: 0.75rem 0 0;
+}
+
+.route-card {
+  background: rgb(255 255 255 / 0.08);
+  border-radius: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.7rem;
+}
+
+.route-card h2 {
+  font-size: 0.8rem;
+  margin: 0 0 0.2rem;
+}
+
+.route-card p {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.route-card-fast h2 {
+  color: #ff8a85;
+}
+
+.route-card-ctx h2 {
+  color: #7fe09a;
+}
+
+.route-delta {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0;
+}
+
+@media (max-width: 640px) {
+  .route-panel {
+    bottom: 1rem;
+    left: 1rem;
+    max-height: 45%;
+    right: 1rem;
+    top: auto;
+    width: auto;
+  }
+}
