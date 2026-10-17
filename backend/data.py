@@ -133,6 +133,11 @@ def building_list(data: CampusData) -> list[tuple[Polygon, float]]:
     return list(zip(data.buildings.geometry, data.buildings.height_m))
 
 
+def tree_list(data: CampusData) -> list[tuple[float, float]]:
+    """(x, y) tree centres in the form ShadowCaster expects."""
+    return [(p.x, p.y) for p in data.trees.geometry]
+
+
 def campus_origin(data: CampusData) -> tuple[float, float]:
     """Campus centre in projected metres (useful for plotting)."""
     pt = gpd.GeoSeries.from_xy([CAMPUS_CENTER[1]], [CAMPUS_CENTER[0]], crs="EPSG:4326").to_crs(METRIC_CRS).iloc[0]

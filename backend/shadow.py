@@ -22,7 +22,7 @@ from typing import Iterable
 import numpy as np
 import shapely
 
-from shapely.geometry import Polygon
+from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
 
@@ -35,6 +35,12 @@ MAX_SHADOW_LENGTH_M = 300.0
 
 # Footprints at least this close to their convex hull use the fast hull shadow.
 CONVEX_AREA_RATIO = 0.98
+
+# Trees carry no size data in our OSM extract, so every tree gets the same crown:
+# a canopy disk from TREE_CANOPY_BASE_M up to TREE_HEIGHT_M. The trunk is ignored.
+TREE_CROWN_RADIUS_M = 3.0
+TREE_CANOPY_BASE_M = 2.0
+TREE_HEIGHT_M = 9.0
 
 DEFAULT_HEIGHT_M = 10.0
 METRES_PER_LEVEL = 3.0
@@ -80,6 +86,11 @@ def building_shadow(footprint: Polygon, height: float, sun: SunPosition) -> Base
     return unary_union(_shadow_parts(footprint, height, sun))
 
 
+def tree_crown(x: float, y: float) -> Polygon:
+    """Crown footprint of a tree at (x, y): a 12-sided disk."""
+    return Point(x, y).buffer(TREE_CROWN_RADIUS_M, quad_segs=3)
+
+
 def height_from_osm(tags: dict) -> float:
     """Building height in metres from OSM tags: height > levels * 3 m > type default > 10 m."""
     raw = tags.get("height")
@@ -106,21 +117,31 @@ class ShadowCaster:
     Concave footprints (courtyards, L/U shapes): hulls would wrongly fill the
     gaps, so they use the exact per-edge sweep (footprint + one parallelogram
     per edge). Everything is then merged with a single union.
+
+    Trees are canopy disks floating above the ground: the crown at height
+    `base` casts its shadow `base / tan(theta)` away, the crown top
+    `top / tan(theta)` away, and the shadow is the hull of the two disks (so
+    the ground under a tree is only shaded when the sun is high enough).
+    Buildings are the special case base = 0.
     """
 
-    def __init__(self, buildings: Iterable[tuple[Polygon, float]]):
-        convex = [(fp, h) for fp, h in buildings if self._is_convex(fp)]
+    def __init__(self, buildings: Iterable[tuple[Polygon, float]],
+                 trees: Iterable[tuple[float, float]] = ()):
+        buildings = list(buildings)
+        convex = [(fp, 0.0, h) for fp, h in buildings if self._is_convex(fp)]
         concave = [(fp, h) for fp, h in buildings if not self._is_convex(fp)]
+        convex += [(tree_crown(x, y), TREE_CANOPY_BASE_M, TREE_HEIGHT_M) for x, y in trees]
 
         # convex: flat vertex array + owning-building index
         verts, owner = [], []
-        for i, (fp, _) in enumerate(convex):
+        for i, (fp, _, _) in enumerate(convex):
             c = np.asarray(fp.exterior.coords)[:-1]
             verts.append(c)
             owner.append(np.full(len(c), i))
         self._cvx_xy = np.concatenate(verts) if verts else np.empty((0, 2))
         self._cvx_owner = np.concatenate(owner) if owner else np.empty(0, dtype=int)
-        self._cvx_h = np.array([h for _, h in convex])
+        self._cvx_base = np.array([b for _, b, _ in convex])
+        self._cvx_h = np.array([h for _, _, h in convex])
 
         # concave: footprints + flattened edges
         self._ccv_fp = np.array([fp for fp, _ in concave], dtype=object)
@@ -140,7 +161,7 @@ class ShadowCaster:
         return not fp.interiors and fp.area >= CONVEX_AREA_RATIO * fp.convex_hull.area
 
     def shadow(self, sun: SunPosition) -> BaseGeometry:
-        """Union of all building shadows (empty polygon when the sun is below MIN_ELEVATION_DEG)."""
+        """Union of all building and tree shadows (empty polygon when the sun is below MIN_ELEVATION_DEG)."""
         pieces = self.pieces(sun)
         return Polygon() if len(pieces) == 0 else shapely.union_all(pieces)
 
@@ -157,9 +178,12 @@ class ShadowCaster:
         pieces: list = []
 
         if len(self._cvx_h):
-            length = np.minimum(self._cvx_h / tan_el, MAX_SHADOW_LENGTH_M)
-            shifted = self._cvx_xy + length[self._cvx_owner, None] * direction
-            both = np.concatenate([self._cvx_xy, shifted])
+            low = np.minimum(self._cvx_base / tan_el, MAX_SHADOW_LENGTH_M)
+            high = np.minimum(self._cvx_h / tan_el, MAX_SHADOW_LENGTH_M)
+            both = np.concatenate([
+                self._cvx_xy + low[self._cvx_owner, None] * direction,
+                self._cvx_xy + high[self._cvx_owner, None] * direction,
+            ])
             idx = np.concatenate([self._cvx_owner, self._cvx_owner])
             order = np.argsort(idx, kind="stable")  # multipoints needs sorted indices
             both, idx = both[order], idx[order]
@@ -175,12 +199,13 @@ class ShadowCaster:
         return np.concatenate(pieces)
 
 
-def shadow_union(buildings: Iterable[tuple[Polygon, float]], sun: SunPosition) -> BaseGeometry:
+def shadow_union(buildings: Iterable[tuple[Polygon, float]], sun: SunPosition,
+                 trees: Iterable[tuple[float, float]] = ()) -> BaseGeometry:
     """Union of all building shadows for one sun position.
 
-    `buildings` is an iterable of (footprint, height_m). Returns an empty
+    `buildings` is an iterable of (footprint, height_m); `trees` of (x, y) centres. Returns an empty
     polygon when the sun is below MIN_ELEVATION_DEG (the caller handles night
     separately: with no sun there is no sun exposure to accumulate).
     For many calls over the same buildings, build a ShadowCaster once instead.
     """
-    return ShadowCaster(buildings).shadow(sun)
+    return ShadowCaster(buildings, trees).shadow(sun)

@@ -54,7 +54,7 @@ Response (abridged):
 
 ### `GET /shadows`
 
-Query: `date`, `time`. Returns a GeoJSON FeatureCollection with the combined building shadow (empty at night).
+Query: `date`, `time`. Returns a GeoJSON FeatureCollection with the combined building and tree shadow (empty at night).
 Draw it as a semi-transparent polygon layer under the routes.
 
 ### Drawing it in react-leaflet
@@ -81,7 +81,7 @@ date/time -> sun position (pvlib) -> building shadows (ShadowCaster)
 | File | Role |
 |---|---|
 | `sun.py` | sun elevation/azimuth (pvlib, plus a textbook formula for explanation) |
-| `shadow.py` | `L = h / tan(theta)`, building shadow by sweeping the footprint |
+| `shadow.py` | `L = h / tan(theta)`, building shadow by sweeping the footprint; tree canopy shadows |
 | `data.py` | OSM campus polygon, walk graph, buildings, trees (cached in `backend/cache/`) |
 | `exposure.py` | per-edge shade fraction and sun-exposure integral |
 | `router.py` | A*/Dijkstra with the multi-objective cost, closed-edge constraints |
@@ -95,6 +95,9 @@ date/time -> sun position (pvlib) -> building shadows (ShadowCaster)
   This matches exact geometry to within about 0.2% (length-weighted).
 - Walking speed 1.4 m/s. Sun intensity is `sin(elevation)`, scaled by Kasten-Czeplak cloud transmission.
 - Edges through building footprints count as fully shaded (indoor connections).
-- Tree canopy is not modelled yet. Elevation and rain are not modelled yet.
+- Trees (OSM `natural=tree` points) have no size data, so each is a canopy disk of radius 3 m from 2 m to 9 m up
+  (constants in `shadow.py`). Its shadow is the hull of the crown shifted by `2 m / tan(theta)` and `9 m / tan(theta)`,
+  so the ground under a tree is only shaded when the sun is high. The trunk is ignored.
+- Elevation and rain are not modelled yet.
 - The time-dependent search settles nodes by accumulated cost, which is exact only if arriving earlier never
   makes the rest of the walk costlier. Walks last minutes and the sun moves slowly, so the error is negligible.

@@ -1,6 +1,6 @@
 """Plot building shadows for a synthetic block at several times of day.
 
-Run from the repo root:  python -m backend.demo_shadows
+Run from the repo root:  python -m backend.demos.shadows
 """
 from datetime import datetime, timedelta, timezone
 
@@ -10,8 +10,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from shapely.geometry import box
 
-from .shadow import shadow_union
-from .sun import sun_position
+from ..shadow import shadow_union
+from ..sun import sun_position
 
 LAT, LON = 40.0, -75.0
 TZ = timezone(timedelta(hours=-5))  # US Eastern standard time

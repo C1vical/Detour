@@ -24,7 +24,7 @@ import pandas as pd
 import shapely
 from shapely.geometry import LineString
 
-from .data import CampusData, building_list
+from .data import CampusData, building_list, tree_list
 from .shadow import ShadowCaster
 from .sun import SunPosition, sun_positions
 
@@ -80,7 +80,7 @@ class ExposureModel:
         self.sun = sun
         self.slice_seconds = slice_seconds
         self.speed = speed
-        self._caster = ShadowCaster(building_list(data))
+        self._caster = ShadowCaster(building_list(data), tree_list(data))
         self._shade_cache: dict[int, np.ndarray] = {}
         self._shadow_cache: dict[int, shapely.Geometry] = {}
 

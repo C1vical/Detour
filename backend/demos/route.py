@@ -1,8 +1,8 @@
 """Compare the fastest route with the sun-aware route across York's Keele campus.
 
 Run from the repo root:
-    python -m backend.demo_route [YYYY-MM-DD] [HH:MM] [w_sun]
-e.g. python -m backend.demo_route 2026-06-21 14:00 3
+    python -m backend.demos.route [YYYY-MM-DD] [HH:MM] [w_sun]
+e.g. python -m backend.demos.route 2026-06-21 14:00 3
 """
 import sys
 from datetime import datetime
@@ -14,11 +14,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import osmnx as ox
 
-from .data import CAMPUS_CENTER, building_list, load_campus
-from .exposure import ExposureModel, SunSchedule
-from .router import compare
-from .shadow import shadow_union
-from .trip import DEST, ORIGIN, nearest_node
+from ..data import CAMPUS_CENTER, building_list, load_campus, tree_list
+from ..exposure import ExposureModel, SunSchedule
+from ..router import compare
+from ..shadow import shadow_union
+from ..trip import DEST, ORIGIN, nearest_node
 
 TZ = ZoneInfo("America/Toronto")
 
@@ -56,7 +56,7 @@ def main() -> None:
     fig, ax = plt.subplots(figsize=(11, 9))
     ox.plot_graph(data.graph, ax=ax, show=False, close=False, node_size=0,
                   edge_color="0.8", edge_linewidth=0.6, bgcolor="white")
-    draw(ax, shadow_union(building_list(data), model.sun.position(start)), color="0.4", alpha=0.35)
+    draw(ax, shadow_union(building_list(data), model.sun.position(start), tree_list(data)), color="0.4", alpha=0.35)
     for fp, _ in building_list(data):
         draw(ax, fp, color="tab:blue", alpha=0.5)
     for r, color, lab in ((fast, "tab:red", "Fastest"), (ctx, "tab:green", "ContextRoute")):

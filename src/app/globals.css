@@ -237,6 +237,79 @@ body {
   margin: 0.75rem 0 0;
 }
 
+.route-stats.stale {
+  opacity: 0.5;
+}
+
+.route-status:empty {
+  display: none;
+}
+
+.route-status button {
+  background: #a9dbc0;
+  border-radius: 0.4rem;
+  color: #12352f;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.15rem 0.6rem;
+}
+
+.route-panel button:focus-visible,
+.route-panel input:focus-visible {
+  outline: 2px solid #ffd27a;
+  outline-offset: 2px;
+}
+
+.route-panel label.toggle {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.route-panel label.toggle input {
+  display: inline-block;
+  margin: 0;
+  width: auto;
+}
+
+.route-legend {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.35rem 0.9rem;
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.route-legend li {
+  align-items: center;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.swatch {
+  border-radius: 2px;
+  display: inline-block;
+  height: 0.6rem;
+  width: 1.1rem;
+}
+
+.swatch-fast {
+  background: #d1342f;
+  height: 0.35rem;
+}
+
+.swatch-ctx {
+  background: #1f8f3a;
+  height: 0.25rem;
+}
+
+.swatch-shadow {
+  background: rgb(232 89 12 / 0.6);
+}
+
 @media (max-width: 640px) {
   .route-panel {
     bottom: 1rem;

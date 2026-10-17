@@ -1,6 +1,6 @@
 """Plot real York campus shadows (OSM buildings) over the walk network.
 
-Run from the repo root:  python -m backend.demo_campus [YYYY-MM-DD]
+Run from the repo root:  python -m backend.demos.campus [YYYY-MM-DD]
 """
 import sys
 from datetime import datetime
@@ -12,9 +12,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import osmnx as ox
 
-from .data import CAMPUS_CENTER, building_list, load_campus
-from .shadow import shadow_union
-from .sun import sun_position
+from ..data import CAMPUS_CENTER, building_list, load_campus, tree_list
+from ..shadow import shadow_union
+from ..sun import sun_position
 
 TZ = ZoneInfo("America/Toronto")
 HOURS = [9, 12, 15, 18]
@@ -40,7 +40,7 @@ def main() -> None:
         sun = sun_position(lat, lon, when)
         ox.plot_graph(data.graph, ax=ax, show=False, close=False, node_size=0,
                       edge_color="tab:green", edge_linewidth=0.8, bgcolor="white")
-        draw(ax, shadow_union(buildings, sun), color="0.4", alpha=0.45)
+        draw(ax, shadow_union(buildings, sun, tree_list(data)), color="0.4", alpha=0.45)
         for fp, _ in buildings:
             draw(ax, fp, color="tab:blue", alpha=0.9)
         ax.plot(*data.campus.exterior.xy, color="tab:red", lw=1)

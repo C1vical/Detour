@@ -37,6 +37,7 @@ The production checks are:
 
 ```bash
 npm run lint
+npm test        # unit tests for src/lib (Node's built-in runner)
 npm run build
 ```
 
@@ -104,3 +105,19 @@ npm run dev
 
 Open <http://localhost:3000>. The app calls the backend at
 `http://localhost:8000`; set `NEXT_PUBLIC_API_URL` to point it elsewhere.
+
+## Using the map
+
+- Click the map to place the start and end pins, or drag them. The map is limited to the campus area.
+- Sun avoidance is 0-100 %: 0 % is the fastest route, higher values trade walking time for shade.
+- **Show shadows** draws the building and tree shadows for the chosen date and time. It is off by default and
+  shadows are only fetched while it is on. Routes always account for shade, whether or not the overlay is shown.
+
+## Project layout
+
+```text
+backend/        FastAPI app, sun/shadow model, router, tests, demos/ (matplotlib scripts, run with python -m backend.demos.<name>)
+src/app/        Next.js page shell and styles
+src/components/ CampusMap (Leaflet UI) and its client-only loader
+src/lib/        route.ts (API types, request building, validation) and its tests (npm test)
+```
