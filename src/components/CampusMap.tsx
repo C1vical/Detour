@@ -17,7 +17,6 @@ import {
 import {
   CAMPUS_BOUNDS,
   DEFAULT_AVOIDANCE,
-  fmtDuration,
   getJson,
   KEELE_CAMPUS_CENTER,
   type LatLon,
@@ -27,14 +26,14 @@ import {
   parseShadows,
   routeQuery,
   type RouteResponse,
-  type RouteStats,
   type Scenario,
   scenarioKey,
   type ShadowCollection,
   shadowKey,
   shadowQuery,
-  signed,
 } from "@/lib/route";
+
+import { RoutePair, Slider, Switch } from "./PanelControls";
 
 type PinKind = "start" | "end";
 
@@ -47,7 +46,10 @@ const pinIcon = (kind: PinKind) =>
   });
 const PIN_ICONS = { start: pinIcon("start"), end: pinIcon("end") };
 
-const SHADOW_COLOR = "#e8590c";
+// Shade is a cool slate so it never competes with the route colours.
+const SHADOW_COLOR = "#2f3b4c";
+const DETOUR_COLOR = "#138a3e";
+const FAST_COLOR = "#e0161b";
 
 function ClickToPlace({ onPick }: { onPick: (p: LatLon) => void }) {
   useMapEvents({ click: (e) => onPick([e.latlng.lat, e.latlng.lng]) });
@@ -59,15 +61,13 @@ function ClickToPlace({ onPick }: { onPick: (p: LatLon) => void }) {
 type Data = { key: string; route: RouteResponse };
 type Shadows = { key: string; collection: ShadowCollection };
 
-function describe(r: RouteStats) {
-  return `${fmtDuration(r.seconds)} · ${Math.round(r.distance_m)} m · ${Math.round(r.sun_percent)}% sun`;
-}
-
 export default function CampusMap() {
   const [date, setDate] = useState("2026-06-21");
   const [minutes, setMinutes] = useState(14 * 60);
   const [avoidance, setAvoidance] = useState(DEFAULT_AVOIDANCE);
-  const [cloud, setCloud] = useState(0);
+  // Cloud cover is no longer user-facing; it stays at its default and is
+  // still sent with every route request.
+  const [cloud] = useState(0);
   const [start, setStart] = useState<LatLon | null>(null);
   const [end, setEnd] = useState<LatLon | null>(null);
   const [placing, setPlacing] = useState<PinKind>("start");
@@ -180,7 +180,7 @@ export default function CampusMap() {
               style={{
                 color: SHADOW_COLOR,
                 fillColor: SHADOW_COLOR,
-                fillOpacity: shadowsStale ? 0.15 : 0.4,
+                fillOpacity: shadowsStale ? 0.12 : 0.32,
                 weight: 0,
               }}
             />
@@ -190,15 +190,42 @@ export default function CampusMap() {
             ignores later changes to its data prop. Stale routes are dimmed. */}
         {data && (
           <>
+            {/* Fastest is a dotted reference line; Detour is the hero, drawn
+                last. Both sit on a white casing so they read over the map. */}
+            <GeoJSON
+              key={`fast-casing-${data.key}`}
+              data={data.route.fastest.geometry}
+              interactive={false}
+              style={{
+                color: "#ffffff",
+                weight: 8.5,
+                opacity: routeStale ? 0.25 : 0.85,
+                lineCap: "round",
+                lineJoin: "round",
+              }}
+            />
             <GeoJSON
               key={`fast-${data.key}`}
               data={data.route.fastest.geometry}
               interactive={false}
               style={{
-                color: "#d1342f",
-                weight: 7,
-                opacity: routeStale ? 0.3 : 0.85,
-                dashArray: routeStale ? "6 8" : undefined,
+                color: FAST_COLOR,
+                weight: 5,
+                opacity: routeStale ? 0.35 : 1,
+                dashArray: "1 9",
+                lineCap: "round",
+              }}
+            />
+            <GeoJSON
+              key={`ctx-casing-${data.key}`}
+              data={data.route.contextroute.geometry}
+              interactive={false}
+              style={{
+                color: "#ffffff",
+                weight: 11,
+                opacity: routeStale ? 0.3 : 0.95,
+                lineCap: "round",
+                lineJoin: "round",
               }}
             />
             <GeoJSON
@@ -206,10 +233,12 @@ export default function CampusMap() {
               data={data.route.contextroute.geometry}
               interactive={false}
               style={{
-                color: "#1f8f3a",
-                weight: 4,
-                opacity: routeStale ? 0.3 : 0.95,
+                color: DETOUR_COLOR,
+                weight: 7,
+                opacity: routeStale ? 0.35 : 1,
                 dashArray: routeStale ? "6 8" : undefined,
+                lineCap: "round",
+                lineJoin: "round",
               }}
             />
           </>
@@ -236,126 +265,136 @@ export default function CampusMap() {
             )
           );
         })}
-        <ZoomControl position="topright" />
+        <ZoomControl position="topleft" />
         <ScaleControl position="bottomleft" />
       </MapContainer>
 
+      <ul className="map-legend" aria-label="Map legend">
+        <li><span className="line-key line-key-ctx" />Detour</li>
+        <li><span className="line-key line-key-fast" />Fastest</li>
+        {showShadows && <li><span className="swatch-shadow" />Shadow</li>}
+      </ul>
+
       <aside className="route-panel" aria-label="Route controls">
-        <p className="route-hint">
-          Click the map to place the {placing} pin, or drag a pin to move it.
-        </p>
-        <div className="pin-controls">
-          {(["start", "end"] as const).map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              aria-pressed={placing === kind}
-              onClick={() => setPlacing(kind)}
-            >
-              Set {kind}
-            </button>
-          ))}
-          <button type="button" onClick={reset} disabled={!start && !end}>
-            Reset
-          </button>
-        </div>
-        <label>
-          Date
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => e.target.value && setDate(e.target.value)}
-          />
-        </label>
-        <label>
-          Time of day: {minutesToTime(minutes)}
-          <input
-            type="range"
-            min={0}
-            max={1439}
-            step={5}
-            value={minutes}
-            aria-valuetext={minutesToTime(minutes)}
-            onChange={(e) => setMinutes(Number(e.target.value))}
-          />
-        </label>
-        <label>
-          Sun avoidance: {avoidance}%
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={avoidance}
-            aria-valuetext={`${avoidance}%`}
-            onChange={(e) => setAvoidance(Number(e.target.value))}
-          />
-        </label>
-        <label>
-          Cloud cover: {Math.round(cloud * 100)}%
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={cloud}
-            aria-valuetext={`${Math.round(cloud * 100)}%`}
-            onChange={(e) => setCloud(Number(e.target.value))}
-          />
-        </label>
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={showShadows}
-            onChange={(e) => setShowShadows(e.target.checked)}
-          />
-          Show shadows (buildings and trees)
-        </label>
-        <ul className="route-legend">
-          <li><span className="swatch swatch-fast" />Fastest</li>
-          <li><span className="swatch swatch-ctx" />ContextRoute</li>
-          {showShadows && <li><span className="swatch swatch-shadow" />Shadow</li>}
-        </ul>
-        {r && (
-          <div className={routeStale ? "route-stats stale" : "route-stats"} aria-busy={routeStale}>
-            <p className="route-sun">
-              {r.sun.is_daylight
-                ? `Sun elevation ${r.sun.elevation_deg.toFixed(0)}° · azimuth ${r.sun.azimuth_deg.toFixed(0)}°`
-                : "Sun is below the horizon, so there are no shadows and no sun exposure."}
-            </p>
-            <div className="route-card route-card-fast">
-              <h2>Fastest route</h2>
-              <p>{describe(r.fastest)}</p>
-            </div>
-            <div className="route-card route-card-ctx">
-              <h2>ContextRoute</h2>
-              <p>{describe(r.contextroute)}</p>
-            </div>
-            <p className="route-delta">
-              {signed(r.extra_seconds)} sec, {signed(r.sun_percent_change)} pts sun
-              exposure
-            </p>
+        <section className="panel-section" aria-labelledby="results-heading">
+          <div className="section-head">
+            <h2 id="results-heading"><span>01</span>Route</h2>
+            {r && (
+              <p className={routeStale ? "climate-line stale" : "climate-line"}>
+                <span className="climate-sun" aria-hidden="true" />
+                {r.sun.is_daylight ? `Sun ${r.sun.elevation_deg.toFixed(0)}°` : "Sun down"}
+                {" · "}
+                {minutesToTime(minutes)}
+              </p>
+            )}
           </div>
-        )}
-        <div role="status" className="route-status">
-          {failed ? (
-            <>
-              Couldn&apos;t update the route: {failed}.{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  setShadowError(null);
-                  setAttempt((n) => n + 1);
-                }}
-              >
-                Retry
-              </button>
-            </>
+          {r ? (
+            <div className={routeStale ? "route-stats stale" : "route-stats"} aria-busy={routeStale}>
+              <RoutePair
+                detour={r.contextroute}
+                fastest={r.fastest}
+                extraSeconds={r.extra_seconds}
+              />
+            </div>
           ) : (
-            routeStale && (r ? "Updating..." : "Loading...")
+            !failed && <div className="route-skeleton" aria-hidden="true" />
           )}
-        </div>
+          <div role="status" className="route-status">
+            {failed ? (
+              <>
+                Couldn&apos;t update the route: {failed}.{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setShadowError(null);
+                    setAttempt((n) => n + 1);
+                  }}
+                >
+                  Retry
+                </button>
+              </>
+            ) : (
+              routeStale && (r ? "Updating..." : "Loading...")
+            )}
+          </div>
+        </section>
+
+        <section className="panel-section" aria-labelledby="pins-heading">
+          <div className="section-head">
+            <h2 id="pins-heading"><span>02</span>Trip</h2>
+            <button
+              type="button"
+              className="text-button"
+              onClick={reset}
+              disabled={!start && !end}
+            >
+              Reset
+            </button>
+          </div>
+          <div className="pin-controls">
+            {(["start", "end"] as const).map((kind) => {
+              const custom = kind === "start" ? start : end;
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  className="pin-button"
+                  aria-pressed={placing === kind}
+                  onClick={() => setPlacing(kind)}
+                >
+                  <span className={`pin-dot pin-dot-${kind}`} aria-hidden="true" />
+                  <span className="pin-button-text">
+                    <span className="pin-button-label">Set {kind}</span>
+                    <span className="pin-button-sub">
+                      {placing === kind ? "Click map" : custom ? "Custom" : "Default"}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="route-hint">Click the map to place the {placing} pin, or drag a pin to move it.</p>
+        </section>
+
+        <section className="panel-section" aria-labelledby="env-heading">
+          <h2 id="env-heading"><span>03</span>Environment</h2>
+          <div className="env-grid">
+            <label className="field">
+              <span className="field-row">
+                <span className="field-label">Date</span>
+              </span>
+              <input
+                type="date"
+                className="date-input"
+                value={date}
+                onChange={(e) => e.target.value && setDate(e.target.value)}
+              />
+            </label>
+            <Slider
+              label="Time"
+              min={0}
+              max={1439}
+              step={5}
+              value={minutes}
+              display={minutesToTime(minutes)}
+              onChange={setMinutes}
+            />
+            <Slider
+              label="Sun avoidance"
+              min={0}
+              max={100}
+              step={5}
+              value={avoidance}
+              display={`${avoidance}%`}
+              onChange={setAvoidance}
+            />
+          </div>
+          <Switch checked={showShadows} onChange={setShowShadows}>
+            Show shadows
+            <small>Buildings and trees</small>
+          </Switch>
+        </section>
       </aside>
     </>
   );
