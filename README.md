@@ -39,3 +39,68 @@ The production checks are:
 npm run lint
 npm run build
 ```
+
+## Running the backend demo (localhost:8000)
+
+The Python backend does the sun/shadow math and routing. It also serves a
+standalone demo page, so you don't need Node to try it.
+
+**Requirements:** Python 3.10 or newer (developed on 3.14) and `git`.
+
+1. Clone and enter the repo:
+
+   ```bash
+   git clone https://github.com/rish-mishra/mathhacks.git
+   cd mathhacks
+   ```
+
+2. Create and activate a virtual environment (recommended):
+
+   ```bash
+   python -m venv .venv
+   # Windows (PowerShell):  .venv\Scripts\Activate.ps1
+   # Windows (Git Bash):    source .venv/Scripts/activate
+   # macOS / Linux:         source .venv/bin/activate
+   ```
+
+3. Install the dependencies (this can take a few minutes):
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Start the server from the repo root:
+
+   ```bash
+   python -m uvicorn backend.api:app --port 8000
+   ```
+
+   The first start takes a few seconds while the campus graph loads.
+
+5. Open it:
+
+   - Demo page: <http://localhost:8000/demo>
+   - API docs: <http://localhost:8000/docs>
+
+Stop the server with `Ctrl+C`. Run the tests with `python -m pytest backend`.
+
+### Troubleshooting
+
+- **Port already in use:** another process is on 8000. Stop it, or use
+  `--port 8001` and open that port instead.
+- **`No module named backend`:** run the command from the repo root, not from
+  inside `backend/`.
+- **`pip install` fails on geopandas/osmnx:** make sure you're on a recent
+  Python and upgrade pip first (`python -m pip install --upgrade pip`).
+
+### Running the Next.js app on top of it (localhost:3000)
+
+With the backend running, start the frontend in a second terminal:
+
+```bash
+npm install
+npm run dev
+```
+
+Open <http://localhost:3000>. The app calls the backend at
+`http://localhost:8000`; set `NEXT_PUBLIC_API_URL` to point it elsewhere.
