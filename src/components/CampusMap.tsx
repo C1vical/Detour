@@ -7,6 +7,7 @@ import {
   MapContainer,
   Marker,
   Pane,
+  Polyline,
   ScaleControl,
   TileLayer,
   Tooltip,
@@ -44,6 +45,15 @@ const pinIcon = (kind: PinKind) =>
     iconSize: [22, 22],
     iconAnchor: [11, 11],
   });
+// Route ends as [lat, lon], or null if the geometry isn't a LineString.
+function lineEnds(g: unknown): { first: LatLon; last: LatLon } | null {
+  const c = (g as { coordinates?: unknown })?.coordinates;
+  if (!Array.isArray(c) || c.length === 0) return null;
+  const a = c[0] as number[];
+  const b = c[c.length - 1] as number[];
+  return { first: [a[1], a[0]], last: [b[1], b[0]] };
+}
+
 const PIN_ICONS = { start: pinIcon("start"), end: pinIcon("end") };
 
 // Shade is a cool slate so it never competes with the route colours.
@@ -243,6 +253,35 @@ export default function CampusMap() {
             />
           </>
         )}
+        {/* Routes follow the walkway graph, so they can stop short of a pin
+            placed off the path; dotted links close the gap on both routes. */}
+        {data &&
+          startPos &&
+          endPos &&
+          [
+            { stats: data.route.fastest, color: FAST_COLOR },
+            { stats: data.route.contextroute, color: DETOUR_COLOR },
+          ].flatMap(({ stats, color }) => {
+            const ends = lineEnds(stats.geometry);
+            if (!ends) return [];
+            return [
+              [startPos, ends.first],
+              [endPos, ends.last],
+            ].map((positions, i) => (
+              <Polyline
+                key={`link-${color}-${i}-${data.key}-${startPos}-${endPos}`}
+                positions={positions as LatLon[]}
+                interactive={false}
+                pathOptions={{
+                  color,
+                  weight: 3,
+                  opacity: routeStale ? 0.35 : 1,
+                  dashArray: "1 8",
+                  lineCap: "round",
+                }}
+              />
+            ));
+          })}
         <ClickToPlace onPick={pick} />
         {(["start", "end"] as const).map((kind) => {
           const pos = kind === "start" ? startPos : endPos;
