@@ -50,6 +50,5 @@ __pycache__/
 .idea/
 .mcp.json
 
-# generated demo images and OSMnx HTTP cache (backend/cache/ IS committed)
-/*.png
+# OSMnx HTTP cache (backend/cache/ IS committed)
 /cache/

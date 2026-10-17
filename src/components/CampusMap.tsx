@@ -23,14 +23,10 @@ import {
   type LatLon,
   MIN_ZOOM,
   minutesToTime,
+  nowInToronto,
   parseRoute,
   parseShadows,
   routeQuery,
-  type RouteResponse,
-  type Scenario,
-  scenarioKey,
-  type ShadowCollection,
-  shadowKey,
   shadowQuery,
 } from "@/lib/route";
 
@@ -45,6 +41,8 @@ const pinIcon = (kind: PinKind) =>
     iconSize: [22, 22],
     iconAnchor: [11, 11],
   });
+const PIN_ICONS = { start: pinIcon("start"), end: pinIcon("end") };
+
 // Route ends as [lat, lon], or null if the geometry isn't a LineString.
 function lineEnds(g: unknown): { first: LatLon; last: LatLon } | null {
   const c = (g as { coordinates?: unknown })?.coordinates;
@@ -53,8 +51,6 @@ function lineEnds(g: unknown): { first: LatLon; last: LatLon } | null {
   const b = c[c.length - 1] as number[];
   return { first: [a[1], a[0]], last: [b[1], b[0]] };
 }
-
-const PIN_ICONS = { start: pinIcon("start"), end: pinIcon("end") };
 
 // Shade is a cool slate so it never competes with the route colours.
 const SHADOW_COLOR = "#2f3b4c";
@@ -66,89 +62,70 @@ function ClickToPlace({ onPick }: { onPick: (p: LatLon) => void }) {
   return null;
 }
 
-// Each layer remembers the scenario it was fetched for, and is dimmed while
-// the current scenario differs.
-type Data = { key: string; route: RouteResponse };
-type Shadows = { key: string; collection: ShadowCollection };
+// A debounced GET. The result remembers the path it was fetched for, so the
+// map can dim it while the current path differs (`stale`). A null path skips
+// the request.
+function useRemote<T>(path: string | null, parse: (v: unknown) => T) {
+  const [loaded, setLoaded] = useState<{ path: string; value: T } | null>(null);
+  const [error, setError] = useState<{ path: string; message: string } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!path) return;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const value = parse(await getJson(path, controller.signal));
+        if (controller.signal.aborted) return;
+        setLoaded({ path, value });
+        setError(null);
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        setError({ path, message: e instanceof Error ? e.message : String(e) });
+      }
+    }, 150);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [path, parse, attempt]);
+
+  return {
+    value: loaded?.value,
+    path: loaded?.path,
+    stale: loaded?.path !== path,
+    error: error?.path === path ? error.message : null,
+    retry: () => {
+      setError(null);
+      setAttempt((n) => n + 1);
+    },
+  };
+}
 
 export default function CampusMap() {
-  const [date, setDate] = useState("2026-06-21");
-  const [minutes, setMinutes] = useState(14 * 60);
+  // Date and time default to the present; any change below refetches routes and shadows.
+  const [initialNow] = useState(() => nowInToronto());
+  const [date, setDate] = useState(initialNow.date);
+  const [minutes, setMinutes] = useState(initialNow.minutes);
   const [avoidance, setAvoidance] = useState(DEFAULT_AVOIDANCE);
-  // Cloud cover is no longer user-facing; it stays at its default and is
-  // still sent with every route request.
-  const [cloud] = useState(0);
   const [start, setStart] = useState<LatLon | null>(null);
   const [end, setEnd] = useState<LatLon | null>(null);
   const [placing, setPlacing] = useState<PinKind>("start");
   const [showShadows, setShowShadows] = useState(false);
-  const [data, setData] = useState<Data | null>(null);
-  const [shadows, setShadows] = useState<Shadows | null>(null);
-  const [error, setError] = useState<{ key: string; message: string } | null>(null);
-  const [shadowError, setShadowError] = useState<{ key: string; message: string } | null>(null);
-  const [attempt, setAttempt] = useState(0);
 
-  const scenario: Scenario = { date, minutes, avoidance, cloud, start, end };
-  const key = scenarioKey(scenario);
-  const sKey = shadowKey(scenario);
-
-  useEffect(() => {
-    const s: Scenario = { date, minutes, avoidance, cloud, start, end };
-    const k = scenarioKey(s);
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const route = parseRoute(await getJson(`/route?${routeQuery(s)}`, controller.signal));
-        if (controller.signal.aborted) return;
-        setData({ key: k, route });
-        setError(null);
-      } catch (e) {
-        if (controller.signal.aborted) return;
-        setError({ key: k, message: e instanceof Error ? e.message : String(e) });
-      }
-    }, 150);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [date, minutes, avoidance, cloud, start, end, attempt]);
-
+  // No route until both pins are placed.
+  const route = useRemote(
+    start && end ? `/route?${routeQuery({ date, minutes, avoidance, start, end })}` : null,
+    parseRoute,
+  );
   // Shadows depend only on date and time, and are only fetched while shown.
-  useEffect(() => {
-    if (!showShadows) return;
-    const s = { date, minutes };
-    const sk = shadowKey(s);
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const collection = parseShadows(
-          await getJson(`/shadows?${shadowQuery(s)}`, controller.signal),
-        );
-        if (controller.signal.aborted) return;
-        setShadows({ key: sk, collection });
-        setShadowError(null);
-      } catch (e) {
-        if (controller.signal.aborted) return;
-        setShadowError({ key: sk, message: e instanceof Error ? e.message : String(e) });
-      }
-    }, 150);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [showShadows, date, minutes, attempt]);
+  const shadows = useRemote(
+    showShadows ? `/shadows?${shadowQuery({ date, minutes })}` : null,
+    parseShadows,
+  );
 
-  const r = data?.route;
-  const routeStale = data?.key !== key;
-  const shadowsStale = shadows?.key !== sKey;
-  const failed =
-    error?.key === key
-      ? error.message
-      : showShadows && shadowError?.key === sKey
-        ? `shadows: ${shadowError.message}`
-        : null;
-  const startPos = start ?? r?.origin;
-  const endPos = end ?? r?.destination;
+  const r = start && end ? route.value : undefined;
+  const failed = route.error ?? (shadows.error && `shadows: ${shadows.error}`);
 
   const place = (kind: PinKind, p: LatLon) => {
     if (kind === "start") setStart(p);
@@ -157,6 +134,11 @@ export default function CampusMap() {
   const pick = (p: LatLon) => {
     place(placing, p);
     setPlacing(placing === "start" ? "end" : "start");
+  };
+  const resetToNow = () => {
+    const now = nowInToronto();
+    setDate(now.date);
+    setMinutes(now.minutes);
   };
   const reset = () => {
     setStart(null);
@@ -182,71 +164,71 @@ export default function CampusMap() {
         />
         {/* Below the overlay pane, so shadows never cover the routes. */}
         <Pane name="shadows" style={{ zIndex: 350 }}>
-          {showShadows && shadows && (
+          {showShadows && shadows.value && (
             <GeoJSON
-              key={`shadows-${shadows.key}`}
-              data={shadows.collection}
+              key={`shadows-${shadows.path}`}
+              data={shadows.value}
               interactive={false}
               style={{
                 color: SHADOW_COLOR,
                 fillColor: SHADOW_COLOR,
-                fillOpacity: shadowsStale ? 0.12 : 0.32,
+                fillOpacity: shadows.stale ? 0.12 : 0.32,
                 weight: 0,
               }}
             />
           )}
         </Pane>
-        {/* Keyed by the scenario the data belongs to: react-leaflet's GeoJSON
+        {/* Keyed by the request path: react-leaflet's GeoJSON
             ignores later changes to its data prop. Stale routes are dimmed. */}
-        {data && (
+        {r && (
           <>
             {/* Fastest is a dotted reference line; Detour is the hero, drawn
                 last. Both sit on a white casing so they read over the map. */}
             <GeoJSON
-              key={`fast-casing-${data.key}`}
-              data={data.route.fastest.geometry}
+              key={`fast-casing-${route.path}`}
+              data={r.fastest.geometry}
               interactive={false}
               style={{
                 color: "#ffffff",
                 weight: 8.5,
-                opacity: routeStale ? 0.25 : 0.85,
+                opacity: route.stale ? 0.25 : 0.85,
                 lineCap: "round",
                 lineJoin: "round",
               }}
             />
             <GeoJSON
-              key={`fast-${data.key}`}
-              data={data.route.fastest.geometry}
+              key={`fast-${route.path}`}
+              data={r.fastest.geometry}
               interactive={false}
               style={{
                 color: FAST_COLOR,
                 weight: 5,
-                opacity: routeStale ? 0.35 : 1,
+                opacity: route.stale ? 0.35 : 1,
                 dashArray: "1 9",
                 lineCap: "round",
               }}
             />
             <GeoJSON
-              key={`ctx-casing-${data.key}`}
-              data={data.route.contextroute.geometry}
+              key={`ctx-casing-${route.path}`}
+              data={r.contextroute.geometry}
               interactive={false}
               style={{
                 color: "#ffffff",
                 weight: 11,
-                opacity: routeStale ? 0.3 : 0.95,
+                opacity: route.stale ? 0.3 : 0.95,
                 lineCap: "round",
                 lineJoin: "round",
               }}
             />
             <GeoJSON
-              key={`ctx-${data.key}`}
-              data={data.route.contextroute.geometry}
+              key={`ctx-${route.path}`}
+              data={r.contextroute.geometry}
               interactive={false}
               style={{
                 color: DETOUR_COLOR,
                 weight: 7,
-                opacity: routeStale ? 0.35 : 1,
-                dashArray: routeStale ? "6 8" : undefined,
+                opacity: route.stale ? 0.35 : 1,
+                dashArray: route.stale ? "6 8" : undefined,
                 lineCap: "round",
                 lineJoin: "round",
               }}
@@ -255,27 +237,27 @@ export default function CampusMap() {
         )}
         {/* Routes follow the walkway graph, so they can stop short of a pin
             placed off the path; dotted links close the gap on both routes. */}
-        {data &&
-          startPos &&
-          endPos &&
+        {r &&
+          start &&
+          end &&
           [
-            { stats: data.route.fastest, color: FAST_COLOR },
-            { stats: data.route.contextroute, color: DETOUR_COLOR },
+            { stats: r.fastest, color: FAST_COLOR },
+            { stats: r.contextroute, color: DETOUR_COLOR },
           ].flatMap(({ stats, color }) => {
             const ends = lineEnds(stats.geometry);
             if (!ends) return [];
             return [
-              [startPos, ends.first],
-              [endPos, ends.last],
+              [start, ends.first],
+              [end, ends.last],
             ].map((positions, i) => (
               <Polyline
-                key={`link-${color}-${i}-${data.key}-${startPos}-${endPos}`}
+                key={`link-${color}-${i}-${route.path}-${start}-${end}`}
                 positions={positions as LatLon[]}
                 interactive={false}
                 pathOptions={{
                   color,
                   weight: 3,
-                  opacity: routeStale ? 0.35 : 1,
+                  opacity: route.stale ? 0.35 : 1,
                   dashArray: "1 8",
                   lineCap: "round",
                 }}
@@ -284,7 +266,7 @@ export default function CampusMap() {
           })}
         <ClickToPlace onPick={pick} />
         {(["start", "end"] as const).map((kind) => {
-          const pos = kind === "start" ? startPos : endPos;
+          const pos = kind === "start" ? start : end;
           return (
             pos && (
               <Marker
@@ -319,7 +301,7 @@ export default function CampusMap() {
           <div className="section-head">
             <h2 id="results-heading"><span>01</span>Route</h2>
             {r && (
-              <p className={routeStale ? "climate-line stale" : "climate-line"}>
+              <p className={route.stale ? "climate-line stale" : "climate-line"}>
                 <span className="climate-sun" aria-hidden="true" />
                 {r.sun.is_daylight ? `Sun ${r.sun.elevation_deg.toFixed(0)}°` : "Sun down"}
                 {" · "}
@@ -328,15 +310,17 @@ export default function CampusMap() {
             )}
           </div>
           {r ? (
-            <div className={routeStale ? "route-stats stale" : "route-stats"} aria-busy={routeStale}>
+            <div className={route.stale ? "route-stats stale" : "route-stats"} aria-busy={route.stale}>
               <RoutePair
                 detour={r.contextroute}
                 fastest={r.fastest}
                 extraSeconds={r.extra_seconds}
               />
             </div>
-          ) : (
+          ) : start && end ? (
             !failed && <div className="route-skeleton" aria-hidden="true" />
+          ) : (
+            <p className="route-hint">Place a start and an end pin to see your route.</p>
           )}
           <div role="status" className="route-status">
             {failed ? (
@@ -345,16 +329,15 @@ export default function CampusMap() {
                 <button
                   type="button"
                   onClick={() => {
-                    setError(null);
-                    setShadowError(null);
-                    setAttempt((n) => n + 1);
+                    route.retry();
+                    shadows.retry();
                   }}
                 >
                   Retry
                 </button>
               </>
             ) : (
-              routeStale && (r ? "Updating..." : "Loading...")
+              start && end && route.stale && (r ? "Updating..." : "Loading...")
             )}
           </div>
         </section>
@@ -373,7 +356,7 @@ export default function CampusMap() {
           </div>
           <div className="pin-controls">
             {(["start", "end"] as const).map((kind) => {
-              const custom = kind === "start" ? start : end;
+              const placed = kind === "start" ? start : end;
               return (
                 <button
                   key={kind}
@@ -386,7 +369,7 @@ export default function CampusMap() {
                   <span className="pin-button-text">
                     <span className="pin-button-label">Set {kind}</span>
                     <span className="pin-button-sub">
-                      {placing === kind ? "Click map" : custom ? "Custom" : "Default"}
+                      {placing === kind ? "Click map" : placed ? "Placed" : "Not set"}
                     </span>
                   </span>
                 </button>
@@ -397,7 +380,12 @@ export default function CampusMap() {
         </section>
 
         <section className="panel-section" aria-labelledby="env-heading">
-          <h2 id="env-heading"><span>03</span>Environment</h2>
+          <div className="section-head">
+            <h2 id="env-heading"><span>03</span>Environment</h2>
+            <button type="button" className="text-button" onClick={resetToNow}>
+              Now
+            </button>
+          </div>
           <div className="env-grid">
             <label className="field">
               <span className="field-row">
@@ -414,7 +402,7 @@ export default function CampusMap() {
               label="Time"
               min={0}
               max={1439}
-              step={5}
+              step={1}
               value={minutes}
               display={minutesToTime(minutes)}
               onChange={setMinutes}

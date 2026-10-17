@@ -28,7 +28,6 @@ import itertools
 import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Iterable
 
 from .exposure import ExposureModel
 
@@ -55,15 +54,9 @@ class RouteResult:
 
 
 def route(model: ExposureModel, origin: int, dest: int, start: datetime,
-          w_time: float = 1.0, w_sun: float = 0.0, use_astar: bool = True,
-          closed_edges: Iterable[tuple[int, int]] = ()) -> RouteResult:
-    """Best route from `origin` to `dest` node ids, leaving at `start` (tz-aware).
-
-    `closed_edges` are (u, v) pairs removed from the graph (hard constraints,
-    e.g. construction closures).
-    """
+          w_time: float = 1.0, w_sun: float = 0.0, use_astar: bool = True) -> RouteResult:
+    """Best route from `origin` to `dest` node ids, leaving at `start` (tz-aware)."""
     g = model.graph
-    closed = set(closed_edges)
     gx, gy = g.nodes[dest]["x"], g.nodes[dest]["y"]
 
     def heuristic(n: int) -> float:
@@ -88,7 +81,7 @@ def route(model: ExposureModel, origin: int, dest: int, start: datetime,
             break
         t_u = start + timedelta(seconds=elapsed[u])
         for v, parallel in g[u].items():
-            if (u, v) in closed or v in settled:
+            if v in settled:
                 continue
             for key in parallel:
                 ei = model.edge_index[(u, v, key)]

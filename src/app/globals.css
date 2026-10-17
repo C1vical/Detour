@@ -49,15 +49,6 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-.sr-only {
-  clip: rect(0 0 0 0);
-  height: 1px;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 1px;
-}
-
 /* ---------- Shell ---------- */
 
 .map-shell {

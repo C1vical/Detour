@@ -24,7 +24,7 @@ def _toy_campus() -> CampusData:
     which covers the middle 60 m of the detour (y = -10) but not the direct path (y = 0).
     """
     g = nx.MultiDiGraph()
-    pts = {"A": (0, 0), "B": (100, 0), "C1": (0, -10), "C2": (100, -10)}
+    pts = {"A": (0, 0), "B": (100, 0), "C1": (0, -10), "C2": (100, -10), "D": (300, 300)}  # D is unreachable
     ids = {n: i for i, n in enumerate(pts)}
     for n, (x, y) in pts.items():
         g.add_node(ids[n], x=float(x), y=float(y))
@@ -36,7 +36,7 @@ def _toy_campus() -> CampusData:
         g.add_edge(ids[b], ids[a], length=length)
 
     link("A", "B"); link("A", "C1"); link("C1", "C2"); link("C2", "B")
-    buildings = gpd.GeoDataFrame({"height_m": [40.0], "height_source": ["height"]},
+    buildings = gpd.GeoDataFrame({"height_m": [40.0]},
                                  geometry=[box(20, -30, 80, -20)], crs=METRIC_CRS)
     trees = gpd.GeoDataFrame({"geometry": []}, geometry="geometry", crs=METRIC_CRS)
     return CampusData(g, buildings, trees, box(-50, -50, 150, 50)), ids
@@ -66,16 +66,10 @@ def test_sun_weight_prefers_shaded_detour(toy):
     assert shady.sun_percent < fast.sun_percent
 
 
-def test_closed_edge_forces_detour(toy):
-    model, ids = toy
-    r = route(model, ids["A"], ids["B"], NOON, w_sun=0.0, closed_edges=[(ids["A"], ids["B"])])
-    assert r.nodes == [ids["A"], ids["C1"], ids["C2"], ids["B"]]
-
-
-def test_no_route_when_all_blocked(toy):
+def test_no_route_to_an_unconnected_node(toy):
     model, ids = toy
     with pytest.raises(NoRouteError):
-        route(model, ids["A"], ids["B"], NOON, closed_edges=[(ids["A"], ids["B"]), (ids["A"], ids["C1"])])
+        route(model, ids["A"], ids["D"], NOON)
 
 
 def test_night_has_no_sun_exposure(toy):

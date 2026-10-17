@@ -27,7 +27,6 @@ CAMPUS_CENTER = (43.7735, -79.5019)  # (lat, lon) approx. Vari Hall; used for su
 CAMPUS_OSM_WAY = 15396822            # "York University, Keele Campus"
 METRIC_CRS = "EPSG:32617"
 GRAPH_BUFFER_M = 100.0   # walk network extends this far past the campus boundary
-SHADOW_BUFFER_M = 300.0  # buildings this far out can shade campus (= MAX_SHADOW_LENGTH_M)
 
 CACHE_DIR = Path(__file__).parent / "cache"
 MASSING_FILE = Path(__file__).parent / "data" / "york_building_heights.geojson"
@@ -92,14 +91,14 @@ def _fetch_campus_polygon() -> BaseGeometry:
     return gdf.to_crs(METRIC_CRS).geometry.iloc[0]
 
 
-def load_campus(refresh: bool = False) -> CampusData:
+def load_campus() -> CampusData:
     """Download (or load from cache) the full Keele campus walk graph, buildings and trees."""
     CACHE_DIR.mkdir(exist_ok=True)
     graph_f, bld_f, tree_f, poly_f = (
         CACHE_DIR / n for n in ("walk.graphml", "toronto_buildings.gpkg", "trees.gpkg", "campus.gpkg")
     )
 
-    if not refresh and all(f.exists() for f in (graph_f, bld_f, tree_f, poly_f)):
+    if all(f.exists() for f in (graph_f, bld_f, tree_f, poly_f)):
         buildings = gpd.read_file(bld_f)
         buildings.geometry = shapely.force_2d(buildings.geometry.array)
         return CampusData(
@@ -118,7 +117,7 @@ def load_campus(refresh: bool = False) -> CampusData:
     graph = ox.project_graph(graph, to_crs=METRIC_CRS)
 
     buildings = _load_massing_buildings()
-    shadow_zone = to_wgs84(campus.buffer(max(SHADOW_BUFFER_M, MAX_SHADOW_LENGTH_M)))
+    shadow_zone = to_wgs84(campus.buffer(MAX_SHADOW_LENGTH_M))
 
     try:
         raw_trees = _with_retries(lambda: ox.features_from_polygon(shadow_zone, tags={"natural": "tree"}))
@@ -142,8 +141,3 @@ def tree_list(data: CampusData) -> list[tuple[float, float]]:
     """(x, y) tree centres in the form ShadowCaster expects."""
     return [(p.x, p.y) for p in data.trees.geometry]
 
-
-def campus_origin(data: CampusData) -> tuple[float, float]:
-    """Campus centre in projected metres (useful for plotting)."""
-    pt = gpd.GeoSeries.from_xy([CAMPUS_CENTER[1]], [CAMPUS_CENTER[0]], crs="EPSG:4326").to_crs(METRIC_CRS).iloc[0]
-    return pt.x, pt.y

@@ -1,20 +1,24 @@
-# ShadeRoute
+# Detour (ShadeRoute)
 
-ShadeRoute is a heat-aware walking navigation app for York University's Keele
-Campus. The initial map display is built with Next.js, React, TypeScript, and
-Leaflet.
+Detour is a heat-aware walking navigation app for York University's Keele
+Campus. The frontend is built with Next.js, React, TypeScript, and Leaflet; the
+routing and sun/shadow math live in a Python backend.
 
-## Map display structure
+## Frontend structure
 
 ```text
 src/
 ├── app/
-│   ├── globals.css       # Leaflet CSS and responsive map layout
-│   ├── layout.tsx        # App metadata and global styles
-│   └── page.tsx          # ShadeRoute map page shell
-└── components/
-    ├── CampusMap.tsx     # Leaflet map, OSM tiles, zoom and scale controls
-    └── CampusMapLoader.tsx # Client-only loading boundary for Leaflet
+│   ├── globals.css         # Leaflet overrides, panel and map layout
+│   ├── layout.tsx          # App metadata, fonts and global styles
+│   └── page.tsx            # Page shell: header and map
+├── components/
+│   ├── CampusMap.tsx       # Leaflet map, route/shadow layers, pins, control panel
+│   ├── CampusMapLoader.tsx # Client-only loading boundary for Leaflet
+│   └── PanelControls.tsx   # Slider, switch and route-summary pieces of the panel
+└── lib/
+    ├── route.ts            # API types, request building, response validation
+    └── route.test.ts       # Unit tests for route.ts (npm test)
 ```
 
 `CampusMap` starts at York University's Keele Campus (`43.7735, -79.5019`)
@@ -113,16 +117,9 @@ Open <http://localhost:3000>. The app calls the backend at
 
 ## Using the map
 
-- Click the map to place the start and end pins, or drag them. The map is limited to the campus area.
+- Click the map to place the start and end pins, or drag them; the route appears once both are placed, and **Reset** removes the pins. The map is limited to the campus area.
+- The date and time start at the current Toronto time; **Now** jumps back to it. Changing either refetches the route and shadows.
 - Sun avoidance is 0-100 %: 0 % is the fastest route, higher values trade walking time for shade.
 - **Show shadows** draws the building and tree shadows for the chosen date and time. It is off by default and
   shadows are only fetched while it is on. Routes always account for shade, whether or not the overlay is shown.
 
-## Project layout
-
-```text
-backend/        FastAPI app, sun/shadow model, router, tests, demos/ (matplotlib scripts, run with python -m backend.demos.<name>)
-src/app/        Next.js page shell and styles
-src/components/ CampusMap (Leaflet UI) and its client-only loader
-src/lib/        route.ts (API types, request building, validation) and its tests (npm test)
-```

@@ -1,6 +1,6 @@
-// Pure helpers shared by CampusMap: API contract types, request building,
-// response validation and display formatting. No routing or sun math lives
-// here; the backend is the source of truth for those.
+// Pure helpers shared by CampusMap: API contract types, request building and
+// response validation. No routing or sun math lives here; the backend is the
+// source of truth for those.
 import type { FeatureCollection, GeoJsonObject } from "geojson";
 
 export type LatLon = [number, number];
@@ -16,7 +16,6 @@ export type RouteStats = {
 export type RouteResponse = {
   when: string;
   w_sun: number;
-  cloud_cover: number;
   sun: { elevation_deg: number; azimuth_deg: number; is_daylight: boolean };
   origin: LatLon; // [lat, lon]
   destination: LatLon;
@@ -32,7 +31,6 @@ export type Scenario = {
   date: string; // YYYY-MM-DD, Toronto local
   minutes: number; // minutes after local midnight
   avoidance: number; // sun avoidance, 0-100 %
-  cloud: number; // 0-1
   start: LatLon | null;
   end: LatLon | null;
 };
@@ -62,29 +60,32 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export const minutesToTime = (m: number) =>
   `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 
-export function fmtDuration(seconds: number) {
-  const s = Math.round(seconds);
-  return `${Math.floor(s / 60)} min ${pad(s % 60)} sec`;
+// Current Toronto wall-clock date and time, to the minute.
+export function nowInToronto(now = new Date()): { date: string; minutes: number } {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Toronto",
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+      .formatToParts(now)
+      .map((x) => [x.type, x.value]),
+  );
+  return {
+    date: `${p.year}-${p.month}-${p.day}`,
+    minutes: Number(p.hour) * 60 + Number(p.minute),
+  };
 }
-
-export function signed(n: number) {
-  const r = Math.round(n);
-  return r > 0 ? `+${r}` : r < 0 ? `−${-r}` : "0";
-}
-
-export type WhenOnly = Pick<Scenario, "date" | "minutes">;
-
-export const shadowKey = (s: WhenOnly) => `${s.date} ${minutesToTime(s.minutes)}`;
-
-export const scenarioKey = (s: Scenario) =>
-  [shadowKey(s), s.avoidance, s.cloud, s.start, s.end].join("|");
 
 export function routeQuery(s: Scenario) {
   const q = new URLSearchParams({
     date: s.date,
     time: minutesToTime(s.minutes),
     w_sun: String(sunWeight(s.avoidance)),
-    cloud_cover: String(s.cloud),
   });
   if (s.start) {
     q.set("from_lat", String(s.start[0]));
@@ -97,7 +98,7 @@ export function routeQuery(s: Scenario) {
   return q;
 }
 
-export const shadowQuery = (s: WhenOnly) =>
+export const shadowQuery = (s: Pick<Scenario, "date" | "minutes">) =>
   new URLSearchParams({ date: s.date, time: minutesToTime(s.minutes) });
 
 // --- response validation -----------------------------------------------------

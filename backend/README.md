@@ -34,7 +34,7 @@ The backend allows CORS from `http://localhost:3000`.
 ### `GET /route`
 
 Query: `date` (YYYY-MM-DD), `time` (HH:MM, Toronto local), `w_sun` (0-50, default 3; 0 = fastest),
-`cloud_cover` (0-1). Currently always the fixed demo trip in `backend/trip.py`.
+`cloud_cover` (0-1), and optional `from_lat/from_lon/to_lat/to_lon` pins (default: the demo trip in `backend/trip.py`).
 
 Response (abridged):
 
@@ -80,16 +80,16 @@ date/time -> sun position (pvlib) -> building shadows (ShadowCaster)
 
 | File | Role |
 |---|---|
-| `sun.py` | sun elevation/azimuth (pvlib, plus a textbook formula for explanation) |
-| `shadow.py` | `L = h / tan(theta)`, building shadow by sweeping the footprint; tree canopy shadows |
-| `data.py` | OSM campus polygon, walk graph, buildings, trees (cached in `backend/cache/`) |
+| `sun.py` | sun elevation/azimuth (pvlib) |
+| `shadow.py` | `L = h / tan(theta)`; building shadows by sweeping the footprint; tree canopy shadows |
+| `data.py` | OSM campus polygon, walk graph and trees; Toronto 3D Massing building heights (cached in `backend/cache/`) |
 | `exposure.py` | per-edge shade fraction and sun-exposure integral |
-| `router.py` | A*/Dijkstra with the multi-objective cost, closed-edge constraints |
+| `router.py` | A*/Dijkstra with the multi-objective cost |
 | `api.py` | FastAPI endpoints |
 
 ## Assumptions (for the judges' explanation)
 
-- Flat ground; building heights from OSM `height`, else `building:levels * 3 m`, else a per-type default.
+- Flat ground; building heights from the City of Toronto 3D Massing snapshot (`backend/data/`).
 - Shadows are not computed when the sun is below 3 degrees, and shadow length is capped at 300 m.
 - Shade fraction is measured at sample points 1.5 m apart along each edge, using the nearest 15-minute shadow.
   This matches exact geometry to within about 0.2% (length-weighted).

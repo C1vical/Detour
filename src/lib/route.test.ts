@@ -2,16 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  fmtDuration,
   getJson,
   minutesToTime,
+  nowInToronto,
   parseRoute,
   parseShadows,
   routeQuery,
   type Scenario,
-  scenarioKey,
-  shadowKey,
-  signed,
+  shadowQuery,
   sunWeight,
 } from "./route.ts";
 
@@ -19,7 +17,6 @@ const base: Scenario = {
   date: "2026-06-21",
   minutes: 14 * 60,
   avoidance: 30,
-  cloud: 0,
   start: null,
   end: null,
 };
@@ -35,7 +32,6 @@ const stats = (seconds: number) => ({
 const route = {
   when: "2026-06-21T14:00:00-04:00",
   w_sun: 3,
-  cloud_cover: 0,
   sun: { elevation_deg: 68.06, azimuth_deg: 205.31, is_daylight: true },
   origin: [43.7715, -79.51],
   destination: [43.779, -79.496],
@@ -54,11 +50,10 @@ test("sun avoidance percent maps linearly onto w_sun and is clamped", () => {
 });
 
 test("route query carries the current scenario, as numbers in backend units", () => {
-  const q = routeQuery({ ...base, avoidance: 50, cloud: 0.25 });
+  const q = routeQuery({ ...base, avoidance: 50 });
   assert.equal(q.get("date"), "2026-06-21");
   assert.equal(q.get("time"), "14:00");
   assert.equal(q.get("w_sun"), "5");
-  assert.equal(q.get("cloud_cover"), "0.25");
   assert.equal(q.has("from_lat"), false);
   assert.equal(q.has("to_lat"), false);
 });
@@ -75,39 +70,26 @@ test("w_sun of 0 % avoidance is exactly 0 (fastest route)", () => {
   assert.equal(routeQuery({ ...base, avoidance: 0 }).get("w_sun"), "0");
 });
 
-test("scenario key changes with every input; shadow key only with date/time", () => {
-  const k = scenarioKey(base);
+test("route query changes with every input; shadow query only with date/time", () => {
+  const q = (s: Scenario) => routeQuery(s).toString();
   for (const change of [
     { date: "2026-06-22" },
     { minutes: 600 },
     { avoidance: 40 },
-    { cloud: 0.5 },
     { start: [43.77, -79.5] as [number, number] },
     { end: [43.78, -79.49] as [number, number] },
   ]) {
-    assert.notEqual(scenarioKey({ ...base, ...change }), k, JSON.stringify(change));
+    assert.notEqual(q({ ...base, ...change }), q(base), JSON.stringify(change));
   }
-  assert.equal(shadowKey({ ...base, avoidance: 90, start: [1, 2] } as Scenario), shadowKey(base));
-  assert.notEqual(shadowKey({ ...base, minutes: 605 }), shadowKey(base));
+  const sq = (s: Scenario) => shadowQuery(s).toString();
+  assert.equal(sq({ ...base, avoidance: 90, start: [1, 2] }), sq(base));
+  assert.notEqual(sq({ ...base, minutes: 605 }), sq(base));
 });
 
 test("time formatting", () => {
   assert.equal(minutesToTime(0), "00:00");
   assert.equal(minutesToTime(14 * 60 + 5), "14:05");
   assert.equal(minutesToTime(1435), "23:55");
-});
-
-test("durations round before splitting into minutes and seconds", () => {
-  assert.equal(fmtDuration(1177.7), "19 min 38 sec");
-  assert.equal(fmtDuration(59.6), "1 min 00 sec");
-  assert.equal(fmtDuration(0), "0 min 00 sec");
-});
-
-test("signed numbers never show -0", () => {
-  assert.equal(signed(250.7), "+251");
-  assert.equal(signed(-33.4), "−33");
-  assert.equal(signed(-0.4), "0");
-  assert.equal(signed(0), "0");
 });
 
 test("a valid /route response parses", () => {
@@ -160,4 +142,10 @@ test("getJson rethrows aborts untouched so callers can ignore them", async (t) =
     throw new DOMException("aborted", "AbortError");
   });
   await assert.rejects(getJson("/route", controller.signal), { name: "AbortError" });
+});
+
+test("now is read as Toronto wall-clock time, to the minute", () => {
+  // 18:07 UTC in June is 14:07 EDT; 03:03 UTC in January is 22:03 EST the day before.
+  assert.deepEqual(nowInToronto(new Date("2026-06-21T18:07:00Z")), { date: "2026-06-21", minutes: 14 * 60 + 7 });
+  assert.deepEqual(nowInToronto(new Date("2026-01-15T03:03:00Z")), { date: "2026-01-14", minutes: 22 * 60 + 3 });
 });
