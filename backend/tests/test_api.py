@@ -22,7 +22,7 @@ def test_health(client):
 
 
 def test_route_shape_and_tradeoff(client):
-    r = client.get("/route", params={"date": "2026-06-21", "time": "14:00", "w_sun": 3})
+    r = client.get("/route", params={"date": "2026-06-21", "time": "14:00", "sun_avoidance": 100})
     assert r.status_code == 200
     j = r.json()
     assert j["fastest"]["geometry"]["type"] == "LineString"
@@ -30,6 +30,7 @@ def test_route_shape_and_tradeoff(client):
     assert -80 < lon < -79 and 43 < lat < 44  # GeoJSON order is [lon, lat]
     assert j["contextroute"]["seconds"] >= j["fastest"]["seconds"]
     assert j["contextroute"]["sun_percent"] <= j["fastest"]["sun_percent"]
+    assert j["route_options"] >= 1
 
 
 def test_time_of_day_changes_result(client):
@@ -41,13 +42,21 @@ def test_time_of_day_changes_result(client):
 
 
 def test_zero_weight_equals_fastest(client):
-    j = client.get("/route", params={"date": "2026-06-21", "time": "14:00", "w_sun": 0}).json()
+    j = client.get("/route", params={"date": "2026-06-21", "time": "14:00", "sun_avoidance": 0}).json()
     assert j["fastest"]["geometry"] == j["contextroute"]["geometry"]
 
 
 def test_validation(client):
     assert client.get("/route", params={"time": "25:99"}).status_code == 422
-    assert client.get("/route", params={"w_sun": -1}).status_code == 422
+    assert client.get("/route", params={"sun_avoidance": -1}).status_code == 422
+    assert client.get("/route", params={"sun_avoidance": 101}).status_code == 422
+
+
+def test_dates_outside_the_supported_range_are_rejected(client):
+    for day in ("0001-01-01", "9999-12-31"):
+        for path in ("/route", "/shadows"):
+            r = client.get(path, params={"date": day, "time": "12:00"})
+            assert r.status_code == 422 and "date must be between" in r.json()["detail"]
 
 
 def test_shadows_geojson(client):
@@ -77,3 +86,15 @@ def test_weather_source_is_reported(client):
     j = client.get("/route", params={"date": "2026-06-21", "time": "14:00", "clear_sky": True}).json()
     assert j["weather"]["source"] == "clear_sky"
     assert j["fastest"]["rain_percent"] == 0
+
+
+def test_campus_outline_and_pins_outside_it(client):
+    campus = client.get("/campus").json()
+    assert campus["geometry"]["type"] == "Polygon"
+    ring = campus["geometry"]["coordinates"][0]
+    # Just west of the campus's westernmost point: near walkways, but off campus.
+    lon, lat = min(ring)
+    outside = {"date": "2026-06-21", "time": "14:00", "from_lat": lat, "from_lon": lon - 0.0003,
+               "to_lat": 43.7790, "to_lon": -79.4960}
+    r = client.get("/route", params=outside)
+    assert r.status_code == 422 and "outside York University" in r.json()["detail"]

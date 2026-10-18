@@ -136,7 +136,7 @@ def load_campus() -> CampusData:
 
 
 def building_list(data: CampusData) -> list[tuple[Polygon, float]]:
-    """(footprint, height_m) pairs in the form shadow_union() expects."""
+    """(footprint, height_m) pairs in the form ShadowCaster expects."""
     return list(zip(data.buildings.geometry, data.buildings.height_m))
 
 

@@ -37,6 +37,7 @@ from .weather import DayWeather, rain_intensity
 WALK_SPEED_MPS = 1.4
 SAMPLE_SPACING_M = 1.5  # spacing of shade sample points along an edge
 CLEAR_SKY_DIRECT_WM2 = 1000.0  # direct radiation that counts as intensity 1
+MAX_CACHED_SLICES = 192  # shadow/shade slices kept per cache (two days of 15-min slices)
 # OSM tag values on a walk edge that mean the walkway is roofed.
 SHELTER_TAGS = {"tunnel": {"building_passage", "yes"}, "covered": {"yes", "arcade", "colonnade"},
                 "indoor": {"yes", "corridor"}, "highway": {"corridor"}}
@@ -61,7 +62,8 @@ class SunSchedule:
     def __init__(self, lat: float, lon: float, day: datetime, weather: DayWeather | None = None):
         midnight = day.replace(hour=0, minute=0, second=0, microsecond=0)
         self.t0 = midnight
-        times = pd.date_range(midnight, periods=24 * 60 + 1, freq="min")
+        # Wall-clock minutes (the arithmetic _minutes() inverts), so DST-change days line up too.
+        times = pd.to_datetime([midnight + timedelta(minutes=i) for i in range(24 * 60 + 1)], utc=True)
         pos = sun_positions(lat, lon, times)
         self.elevation = pos["elevation"].to_numpy()
         self.azimuth = pos["azimuth"].to_numpy()
@@ -180,7 +182,7 @@ class ExposureModel:
         shadow = self._shadow_cache.get(key)
         if shadow is None:
             shadow = self._caster.shadow(self._position_for_slice(when))
-            self._shadow_cache[key] = shadow
+            _remember(self._shadow_cache, key, shadow)
         return shadow
 
     def shade_fractions(self, when: datetime) -> np.ndarray:
@@ -197,7 +199,7 @@ class ExposureModel:
             shaded = np.zeros(len(self._samples))
             shaded[np.unique(hit)] = 1.0
             frac = np.bincount(self._sample_edge, weights=shaded, minlength=len(self.edges)) / self._sample_counts
-        self._shade_cache[key] = frac
+        _remember(self._shade_cache, key, frac)
         return frac
 
     # --- exposure ----------------------------------------------------------
@@ -225,6 +227,13 @@ class ExposureModel:
     def full_rain_seconds(self, edge: int, enter: datetime) -> float:
         """Same integral with no shelter (g=0): the rain the edge would give in the open."""
         return self._trapezoid(edge, enter, self.sun.rain)
+
+
+def _remember(cache: dict, key, value) -> None:
+    """Store a slice; the caches are shared by every with_sun() copy, so start over when full."""
+    if len(cache) >= MAX_CACHED_SLICES:
+        cache.clear()
+    cache[key] = value
 
 
 def _has_tag(value, accepted: set[str]) -> bool:

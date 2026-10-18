@@ -7,6 +7,7 @@ import {
   MapContainer,
   Marker,
   Pane,
+  Polygon,
   Polyline,
   ScaleControl,
   TileLayer,
@@ -19,12 +20,16 @@ import {
   CAMPUS_BOUNDS,
   DEFAULT_AVOIDANCE,
   getJson,
+  insideRing,
   KEELE_CAMPUS_CENTER,
   type LatLon,
   type Weather,
+  MAX_DATE,
+  MIN_DATE,
   MIN_ZOOM,
   minutesToTime,
   nowInToronto,
+  parseCampus,
   parseRoute,
   parseShadows,
   routeQuery,
@@ -57,6 +62,17 @@ function lineEnds(g: unknown): { first: LatLon; last: LatLon } | null {
 const SHADOW_COLOR = "#2f3b4c";
 const DETOUR_COLOR = "#138a3e";
 const FAST_COLOR = "#e0161b";
+
+const CAMPUS_COLOR = "#c8520f"; // --orange-deep
+// Everything outside the campus is greyed out: a box well past the map's
+// maxBounds with the campus cut out of it.
+const OUTSIDE: LatLon[] = [
+  [43.6, -79.8],
+  [43.95, -79.8],
+  [43.95, -79.2],
+  [43.6, -79.2],
+];
+const OFF_CAMPUS = "Pins must be inside York University's Keele Campus.";
 
 const isRaining = (w: Weather) => (w.rain_mm_h ?? 0) > 0;
 
@@ -136,16 +152,27 @@ export default function CampusMap() {
     parseShadows,
   );
 
+  // The campus boundary: drawn on the map, and pins can only go inside it.
+  const campus = useRemote("/campus", parseCampus).value;
+  const [notice, setNotice] = useState<string | null>(null);
+
   const r = start && end ? route.value : undefined;
   const failed = route.error ?? (shadows.error && `shadows: ${shadows.error}`);
 
+  // Until the boundary loads, allow any point; the backend rejects off-campus pins too.
+  const onCampus = (p: LatLon) => !campus || insideRing(p, campus);
   const place = (kind: PinKind, p: LatLon) => {
+    if (!onCampus(p)) {
+      setNotice(OFF_CAMPUS);
+      return false;
+    }
+    setNotice(null);
     if (kind === "start") setStart(p);
     else setEnd(p);
+    return true;
   };
   const pick = (p: LatLon) => {
-    place(placing, p);
-    setPlacing(placing === "start" ? "end" : "start");
+    if (place(placing, p)) setPlacing(placing === "start" ? "end" : "start");
   };
   const resetToNow = () => {
     const now = nowInToronto();
@@ -174,6 +201,24 @@ export default function CampusMap() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        {/* Greyed-out surroundings and the campus outline, under shadows and routes.
+            Not interactive, so clicks still reach the map (and get rejected off campus). */}
+        <Pane name="campus" style={{ zIndex: 340 }}>
+          {campus && (
+            <>
+              <Polygon
+                positions={[OUTSIDE, campus]}
+                interactive={false}
+                pathOptions={{ stroke: false, fillColor: "#121212", fillOpacity: 0.18 }}
+              />
+              <Polygon
+                positions={campus}
+                interactive={false}
+                pathOptions={{ color: CAMPUS_COLOR, weight: 3, opacity: 0.9, dashArray: "8 6", fill: false }}
+              />
+            </>
+          )}
+        </Pane>
         {/* Below the overlay pane, so shadows never cover the routes. */}
         <Pane name="shadows" style={{ zIndex: 350 }}>
           {showShadows && shadows.value && (
@@ -289,7 +334,8 @@ export default function CampusMap() {
                 eventHandlers={{
                   dragend: (e) => {
                     const ll = e.target.getLatLng();
-                    place(kind, [ll.lat, ll.lng]);
+                    // Dropped off campus: put the pin back where it was.
+                    if (!place(kind, [ll.lat, ll.lng])) e.target.setLatLng(pos);
                   },
                 }}
               >
@@ -305,6 +351,7 @@ export default function CampusMap() {
       <ul className="map-legend" aria-label="Map legend">
         <li><span className="line-key line-key-ctx" />Detour</li>
         <li><span className="line-key line-key-fast" />Fastest</li>
+        <li><span className="line-key line-key-campus" />Campus</li>
         {showShadows && <li><span className="swatch-shadow" />Shadow</li>}
       </ul>
 
@@ -327,6 +374,11 @@ export default function CampusMap() {
                 extraSeconds={r.extra_seconds}
                 showRain={isRaining(r.weather)}
               />
+              <p className="route-hint">
+                {r.route_options > 1
+                  ? `Sun avoidance chooses between ${r.route_options} routes for this trip.`
+                  : "Only one sensible route for this trip right now."}
+              </p>
               <p className="route-hint">{describeWeather(r.weather)}</p>
             </div>
           ) : start && end ? (
@@ -388,7 +440,14 @@ export default function CampusMap() {
               );
             })}
           </div>
-          <p className="route-hint">Click the map to place the {placing} pin, or drag a pin to move it.</p>
+          <p className="route-hint">
+            Click inside the campus outline to place the {placing} pin, or drag a pin to move it.
+          </p>
+          {notice && (
+            <p className="route-hint route-hint-warn" role="alert">
+              {notice}
+            </p>
+          )}
         </section>
 
         <section className="panel-section" aria-labelledby="env-heading">
@@ -406,6 +465,8 @@ export default function CampusMap() {
               <input
                 type="date"
                 className="date-input"
+                min={MIN_DATE}
+                max={MAX_DATE}
                 value={date}
                 onChange={(e) => e.target.value && setDate(e.target.value)}
               />

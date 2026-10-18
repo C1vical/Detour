@@ -37,7 +37,7 @@
     <input type="time" id="time">
     <input type="range" id="slider" min="0" max="1439" step="5" aria-label="Time of day slider">
     <label for="wsun">Sun avoidance: <span id="wsunv"></span></label>
-    <input type="range" id="wsun" min="0" max="10" step="0.5" value="3">
+    <input type="range" id="wsun" min="0" max="100" step="5" value="50">
     <label><input type="checkbox" id="wrain"> Avoid rain</label>
     <div id="sun" class="row" style="margin-top:12px"></div>
     <div id="weather" class="row"></div>
@@ -65,7 +65,7 @@ function setTime(mins) {
 $("date").value = "2026-06-21";
 setTime(14 * 60);
 
-const fmt = s => Math.floor(s / 60) + " min " + String(Math.round(s % 60)).padStart(2, "0") + " sec";
+const fmt = s => { s = Math.round(s); return Math.floor(s / 60) + " min " + String(s % 60).padStart(2, "0") + " sec"; };
 const signed = (n, d) => (n >= 0 ? "+" : "") + n.toFixed(d);
 
 let timer, seq = 0;
@@ -74,8 +74,8 @@ function schedule() { clearTimeout(timer); timer = setTimeout(refresh, 150); }
 async function refresh() {
   const mine = ++seq;
   const q = new URLSearchParams({ date: $("date").value, time: $("time").value,
-    w_sun: $("wsun").value, w_rain: $("wrain").checked ? 10 : 0 });
-  $("wsunv").textContent = $("wsun").value;
+    sun_avoidance: $("wsun").value, w_rain: $("wrain").checked ? 10 : 0 });
+  $("wsunv").textContent = $("wsun").value + " %";
   $("status").textContent = "Loading...";
   try {
     const [r, s] = await Promise.all([

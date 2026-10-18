@@ -7,6 +7,7 @@ Demo page (no Next needed): http://localhost:8000/demo
 Endpoints
     GET /route    fastest route vs ContextRoute (demo trip by default, or between clicked points), at a given date/time
     GET /shadows  building shadows (GeoJSON) at a given date/time, to draw on the map
+    GET /campus   the campus boundary (GeoJSON); pins outside it are rejected
     GET /health
 
 All geometry is GeoJSON in WGS84 (longitude, latitude), which Leaflet/MapLibre read directly.
@@ -30,7 +31,7 @@ from shapely.geometry import LineString, mapping
 
 from .data import CAMPUS_CENTER, METRIC_CRS, CampusData, load_campus
 from .exposure import ExposureModel, SunSchedule
-from .router import NoRouteError, RouteResult, compare
+from .router import NoRouteError, RouteResult, pick, route, shade_options
 from .trip import DEST, ORIGIN, nearest_node
 from .weather import day_weather
 
@@ -39,6 +40,8 @@ STATIC_DIR = Path(__file__).parent / "static"
 _transformer = Transformer.from_crs(METRIC_CRS, "EPSG:4326", always_xy=True)
 _to_metric = Transformer.from_crs("EPSG:4326", METRIC_CRS, always_xy=True)
 MAX_SNAP_M = 150.0  # a clicked point farther than this from any path is rejected
+# Supported dates; far outside this, datetime.timestamp() fails on some platforms.
+MIN_DATE, MAX_DATE = Date(1900, 1, 1), Date(2100, 12, 31)
 
 
 def _to_wgs84(geom):
@@ -72,8 +75,9 @@ class WeatherOut(BaseModel):
 
 class RouteResponse(BaseModel):
     when: str
-    w_sun: float
+    sun_avoidance: float
     w_rain: float
+    route_options: int  # how many time/shade trade-offs this trip has; the slider picks one
     weather: WeatherOut
     sun: SunOut
     origin: tuple[float, float]       # (lat, lon)
@@ -93,6 +97,7 @@ class State:
     origin: int
     dest: int
     models: dict[tuple[Date, bool], ExposureModel]
+    options: dict[tuple, tuple[RouteResult, list[RouteResult]]]
 
 
 state = State()
@@ -106,6 +111,7 @@ async def lifespan(_: FastAPI):
     state.origin = nearest_node(state.data.graph, ORIGIN)
     state.dest = nearest_node(state.data.graph, DEST)
     state.models = {}
+    state.options = {}
     yield
 
 
@@ -123,6 +129,8 @@ app.add_middleware(
 def _parse_when(day: Date | None, clock: Time | None) -> datetime:
     now = datetime.now(TZ)
     day = day or now.date()
+    if not MIN_DATE <= day <= MAX_DATE:
+        raise HTTPException(422, f"date must be between {MIN_DATE} and {MAX_DATE}")
     clock = clock or now.time().replace(second=0, microsecond=0)
     return datetime.combine(day, clock, tzinfo=TZ)
 
@@ -140,6 +148,19 @@ def _model_for(when: datetime, clear_sky: bool) -> ExposureModel:
     return model
 
 
+def _options_for(model: ExposureModel, origin: int, dest: int, when: datetime,
+                 w_rain: float) -> tuple[RouteResult, list[RouteResult]]:
+    """(fastest route, shade options) for a trip, cached so moving the avoidance slider is instant."""
+    key = (model, origin, dest, when, w_rain)
+    hit = state.options.get(key)
+    if hit is None:
+        if len(state.options) > 64:
+            state.options.clear()
+        hit = (route(model, origin, dest, when), shade_options(model, origin, dest, when, w_rain))
+        state.options[key] = hit
+    return hit
+
+
 def _weather_out(model: ExposureModel, when: datetime, clear_sky: bool) -> WeatherOut:
     weather = model.sun.weather
     if weather is None:
@@ -151,9 +172,11 @@ def _weather_out(model: ExposureModel, when: datetime, clear_sky: bool) -> Weath
 
 
 def _snap(name: str, latlon: tuple[float, float]) -> int:
-    """Nearest walk-graph node to a (lat, lon), or 422 if the point is off the network."""
-    node = nearest_node(state.data.graph, latlon)
+    """Nearest walk-graph node to a (lat, lon), or 422 if the point is off campus or off the network."""
     x, y = _to_metric.transform(latlon[1], latlon[0])
+    if not shapely.contains_xy(state.data.campus, x, y):
+        raise HTTPException(422, f"{name} is outside York University's Keele Campus")
+    node = nearest_node(state.data.graph, latlon)
     nd = state.data.graph.nodes[node]
     if np.hypot(nd["x"] - x, nd["y"] - y) > MAX_SNAP_M:
         raise HTTPException(422, f"{name} is too far from any walkable path")
@@ -186,11 +209,19 @@ def health() -> dict:
     return {"status": "ok", "edges": len(state.base.edges), "buildings": len(state.data.buildings)}
 
 
+@app.get("/campus")
+def get_campus() -> dict:
+    """GeoJSON Feature with the Keele campus boundary; /route only accepts pins inside it."""
+    return {"type": "Feature", "properties": {"name": "York University, Keele Campus"},
+            "geometry": mapping(_to_wgs84(state.data.campus))}
+
+
 @app.get("/route", response_model=RouteResponse)
 def get_route(
     date: Date | None = Query(None, description="YYYY-MM-DD (default: today)"),
     time: Time | None = Query(None, description="HH:MM, 24 h (default: now)"),
-    w_sun: float = Query(3.0, ge=0, le=50, description="Sun-avoidance weight; 0 = fastest route"),
+    sun_avoidance: float = Query(50.0, ge=0, le=100,
+                                 description="% of the avoidable sun to avoid; 0 = fastest, 100 = shadiest"),
     w_rain: float = Query(0.0, ge=0, le=50, description="Rain-avoidance weight; only matters while it rains"),
     clear_sky: bool = Query(False, description="Ignore live weather: clear, dry sky (for demos)"),
     from_lat: float | None = Query(None, ge=-90, le=90, description="Start latitude (default: demo start)"),
@@ -207,14 +238,16 @@ def get_route(
     when = _parse_when(date, time)
     model = _model_for(when, clear_sky)
     try:
-        fast, ctx = compare(model, origin_node, dest_node, when, w_sun, w_rain)
+        fast, options = _options_for(model, origin_node, dest_node, when, w_rain)
     except NoRouteError as exc:
         raise HTTPException(404, str(exc))
+    ctx = pick(options, sun_avoidance / 100)
     sun = model.sun.position(when)
     return RouteResponse(
         when=when.isoformat(),
-        w_sun=w_sun,
+        sun_avoidance=sun_avoidance,
         w_rain=w_rain,
+        route_options=len(options),
         weather=_weather_out(model, when, clear_sky),
         sun=SunOut(elevation_deg=round(sun.elevation, 2), azimuth_deg=round(sun.azimuth, 2),
                    is_daylight=sun.is_up),

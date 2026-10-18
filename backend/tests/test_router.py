@@ -1,15 +1,19 @@
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import geopandas as gpd
 import networkx as nx
+import numpy as np
+import pandas as pd
 import pytest
+import shapely
 from shapely.geometry import box
 
 from backend.data import CACHE_DIR, CAMPUS_CENTER, METRIC_CRS, CampusData, load_campus
-from backend.exposure import ExposureModel, SunSchedule
-from backend.router import NoRouteError, compare, route
+from backend.exposure import MAX_CACHED_SLICES, ExposureModel, SunSchedule
+from backend.sun import sun_positions
+from backend.router import MAX_DETOUR, SUN_STEP, NoRouteError, RouteResult, pick, route, shade_options
 from backend.weather import DayWeather
 
 TZ = ZoneInfo("America/Toronto")
@@ -50,6 +54,17 @@ def toy():
     return model, ids
 
 
+@pytest.mark.parametrize("day", [datetime(2026, 11, 1, tzinfo=TZ),   # DST ends at 02:00
+                                 datetime(2026, 3, 8, tzinfo=TZ),    # DST starts at 02:00
+                                 DAY])
+def test_schedule_matches_pvlib_on_dst_change_days(day):
+    noon = day.replace(hour=12)
+    pos = SunSchedule(*CAMPUS_CENTER, day).position(noon)
+    truth = sun_positions(*CAMPUS_CENTER, pd.DatetimeIndex([noon])).iloc[0]
+    assert pos.elevation == pytest.approx(truth["elevation"], abs=0.05)
+    assert pos.azimuth == pytest.approx(truth["azimuth"], abs=0.2)
+
+
 def test_fastest_route_goes_direct(toy):
     model, ids = toy
     r = route(model, ids["A"], ids["B"], NOON, w_sun=0.0)
@@ -65,6 +80,22 @@ def test_sun_weight_prefers_shaded_detour(toy):
     assert shady.seconds > fast.seconds
     assert shady.sun_seconds < fast.sun_seconds
     assert shady.sun_percent < fast.sun_percent
+
+
+def test_shade_options_are_the_direct_path_and_the_shaded_detour(toy):
+    model, ids = toy
+    options = shade_options(model, ids["A"], ids["B"], NOON)
+    assert [o.nodes for o in options] == [[ids["A"], ids["B"]], [ids["A"], ids["C1"], ids["C2"], ids["B"]]]
+    assert options[0].seconds == pytest.approx(100 / 1.4)
+    assert pick(options, 0.0) is options[0] and pick(options, 1.0) is options[1]
+
+
+def test_pick_takes_the_quickest_option_that_avoids_enough_sun():
+    def opt(seconds, sun):
+        return RouteResult([], [], seconds, 0.0, sun, 100.0, 0.0, 0.0, cost=seconds)
+    options = [opt(600, 100), opt(620, 70), opt(650, 40), opt(700, 0)]  # 100 sun-seconds avoidable
+    assert [pick(options, a).seconds for a in (0.0, 0.2, 0.3, 0.5, 0.6, 0.61, 1.0)] == \
+        [600, 620, 620, 650, 650, 700, 700]
 
 
 def test_no_route_to_an_unconnected_node(toy):
@@ -90,24 +121,87 @@ def test_shade_fraction_of_detour_middle(toy):
     assert f[direct] == pytest.approx(0.0, abs=1e-6)
 
 
-@pytest.mark.skipif(not (CACHE_DIR / "walk.graphml").exists(), reason="campus cache not downloaded")
-def test_astar_matches_dijkstra_on_campus():
+def test_shade_cache_is_bounded(toy):
+    model, _ = toy
+    for i in range(MAX_CACHED_SLICES + 5):
+        model.shade_fractions(DAY + timedelta(seconds=i * model.slice_seconds))
+    assert len(model._shade_cache) <= MAX_CACHED_SLICES
+
+
+# --- the real campus ----------------------------------------------------------
+
+@pytest.fixture(scope="module")
+def campus():
+    if not (CACHE_DIR / "walk.graphml").exists():
+        pytest.skip("campus cache not downloaded")
     data = load_campus()
-    model = ExposureModel(data, SunSchedule(*CAMPUS_CENTER, DAY))
-    nodes = list(data.graph.nodes)
-    rng = random.Random(0)
-    start = datetime(2026, 6, 21, 15, 0, tzinfo=TZ)
-    tested = 0
-    while tested < 5:
+    return data, ExposureModel(data, SunSchedule(*CAMPUS_CENTER, DAY))
+
+
+def _connected_pairs(graph, n, seed=0):
+    nodes, rng, pairs = list(graph.nodes), random.Random(seed), []
+    while len(pairs) < n:
         a, b = rng.sample(nodes, 2)
-        try:
-            d = route(model, a, b, start, w_sun=2.0, use_astar=False)
-        except NoRouteError:
-            continue
-        s = route(model, a, b, start, w_sun=2.0, use_astar=True)
-        assert s.cost == pytest.approx(d.cost, rel=1e-9)
-        assert s.expanded <= d.expanded
-        tested += 1
+        if nx.has_path(graph, a, b):
+            pairs.append((a, b))
+    return pairs
+
+
+def test_fastest_route_matches_networkx_shortest_path(campus):
+    data, model = campus
+    for a, b in _connected_pairs(data.graph, 10):
+        r = route(model, a, b, NOON)
+        assert r.seconds == pytest.approx(nx.shortest_path_length(data.graph, a, b, weight="length") / 1.4)
+
+
+def test_astar_matches_dijkstra_on_campus(campus):
+    # The heuristic stays consistent when sun and rain are weighted, so A* finds the same routes.
+    data, model = campus
+    rainy = model.with_sun(SunSchedule(*CAMPUS_CENTER, DAY, _weather(direct=700.0, rain=3.0)))
+    start = datetime(2026, 6, 21, 15, 0, tzinfo=TZ)
+    astar_expanded = dijkstra_expanded = 0
+    for a, b in _connected_pairs(data.graph, 5):
+        for m, w_sun, w_rain in [(model, 0.0, 0.0), (model, 2.0, 0.0), (rainy, 5.0, 10.0)]:
+            d = route(m, a, b, start, w_sun=w_sun, w_rain=w_rain, use_astar=False)
+            s = route(m, a, b, start, w_sun=w_sun, w_rain=w_rain, use_astar=True)
+            assert s.cost == pytest.approx(d.cost, rel=1e-9)
+            astar_expanded += s.expanded
+            dijkstra_expanded += d.expanded
+    assert astar_expanded < dijkstra_expanded
+
+
+def test_shade_options_form_a_trade_off_that_covers_every_weighted_route(campus):
+    # Options get strictly slower and shadier, stay within the detour cap, and every route a
+    # weighted sum time + w * sun would choose is one of them (or within SUN_STEP of one).
+    data, model = campus
+    start = datetime(2026, 6, 21, 14, 0, tzinfo=TZ)
+    for a, b in _connected_pairs(data.graph, 4, seed=1):
+        options = shade_options(model, a, b, start)
+        fastest = route(model, a, b, start)
+        assert options[0].seconds == pytest.approx(fastest.seconds)
+        for prev, nxt in zip(options, options[1:]):
+            assert nxt.cost >= prev.cost and nxt.sun_seconds < prev.sun_seconds
+        assert options[-1].cost <= fastest.cost * (1 + MAX_DETOUR) + 1e-6
+        step = max(1.0, SUN_STEP * fastest.sun_seconds)
+        for w in (0.1, 0.5, 2.0, 10.0):
+            r = route(model, a, b, start, w_sun=w)
+            if r.seconds <= fastest.seconds * (1 + MAX_DETOUR):
+                assert any(o.seconds <= r.seconds + 1e-6 and o.sun_seconds <= r.sun_seconds + step
+                           for o in options)
+
+
+def test_sampled_shade_matches_exact_geometry_on_campus(campus):
+    # Length-weighted over the campus, the 1.5 m sample points match exact line/shadow overlap.
+    _, model = campus
+    for hour in (9, 13, 17):
+        when = datetime(2026, 6, 21, hour, 0, tzinfo=TZ)
+        parts = shapely.get_parts(model.shadow_at(when))  # disjoint, so overlap lengths add up
+        li, pi = shapely.STRtree(parts).query(model._lines, predicate="intersects")
+        overlap = shapely.length(shapely.intersection(model._lines[li], parts[pi]))
+        exact = np.bincount(li, overlap, minlength=len(model.edges)) / model._geom_len
+        sampled = model.shade_fractions(when)
+        weights = model._geom_len / model._geom_len.sum()
+        assert (sampled * weights).sum() == pytest.approx((exact * weights).sum(), abs=0.005)
 
 
 # --- rain and shelter ---------------------------------------------------------
@@ -142,7 +236,8 @@ def test_roofed_osm_tags_count_as_fully_sheltered():
 
 def test_rain_weight_prefers_sheltered_detour_while_raining():
     model, ids = _rainy_toy(footprint=box(20, -15, 80, -5), height=3.0)
-    fast, ctx = compare(model, ids["A"], ids["B"], NOON, w_sun=0.0, w_rain=5.0)
+    fast = route(model, ids["A"], ids["B"], NOON)
+    ctx = pick(shade_options(model, ids["A"], ids["B"], NOON, w_rain=5.0), 0.0)
     assert fast.nodes == [ids["A"], ids["B"]]
     assert ctx.nodes == [ids["A"], ids["C1"], ids["C2"], ids["B"]]
     assert ctx.rain_percent < fast.rain_percent == pytest.approx(100.0)

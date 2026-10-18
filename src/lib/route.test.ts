@@ -3,14 +3,17 @@ import { test } from "node:test";
 
 import {
   getJson,
+  insideRing,
+  MAX_DATE,
+  MIN_DATE,
   minutesToTime,
   nowInToronto,
+  parseCampus,
   parseRoute,
   parseShadows,
   routeQuery,
   type Scenario,
   shadowQuery,
-  sunWeight,
 } from "./route.ts";
 
 const base: Scenario = {
@@ -33,8 +36,9 @@ const stats = (seconds: number) => ({
 
 const route = {
   when: "2026-06-21T14:00:00-04:00",
-  w_sun: 3,
+  sun_avoidance: 30,
   w_rain: 0,
+  route_options: 4,
   weather: { source: "live", direct_wm2: 640, cloud_cover: 0.2, rain_mm_h: 0 },
   sun: { elevation_deg: 68.06, azimuth_deg: 205.31, is_daylight: true },
   origin: [43.7715, -79.51],
@@ -46,19 +50,11 @@ const route = {
   rain_percent_change: 0,
 };
 
-test("sun avoidance percent maps linearly onto w_sun and is clamped", () => {
-  assert.equal(sunWeight(0), 0);
-  assert.equal(sunWeight(30), 3);
-  assert.equal(sunWeight(100), 10);
-  assert.equal(sunWeight(150), 10);
-  assert.equal(sunWeight(-5), 0);
-});
-
 test("route query carries the current scenario, as numbers in backend units", () => {
   const q = routeQuery({ ...base, sunAvoidance: 50, avoidRain: true });
   assert.equal(q.get("date"), "2026-06-21");
   assert.equal(q.get("time"), "14:00");
-  assert.equal(q.get("w_sun"), "5");
+  assert.equal(q.get("sun_avoidance"), "50");
   assert.equal(q.get("w_rain"), "10");
   assert.equal(q.has("from_lat"), false);
   assert.equal(q.has("to_lat"), false);
@@ -72,8 +68,10 @@ test("pins are sent as lat/lon pairs only when set", () => {
   assert.equal(q.has("to_lon"), false);
 });
 
-test("w_sun of 0 % avoidance is exactly 0 (fastest route)", () => {
-  assert.equal(routeQuery({ ...base, sunAvoidance: 0 }).get("w_sun"), "0");
+test("sun avoidance is sent as a percent, clamped to 0-100", () => {
+  assert.equal(routeQuery({ ...base, sunAvoidance: 0 }).get("sun_avoidance"), "0");
+  assert.equal(routeQuery({ ...base, sunAvoidance: 150 }).get("sun_avoidance"), "100");
+  assert.equal(routeQuery({ ...base, sunAvoidance: -5 }).get("sun_avoidance"), "0");
 });
 
 test("route query changes with every input; shadow query only with date/time", () => {
@@ -113,6 +111,7 @@ test("malformed /route responses are rejected instead of crashing the render", (
   assert.throws(() => parseRoute(null));
   assert.throws(() => parseRoute({ ...route, fastest: undefined }));
   assert.throws(() => parseRoute({ ...route, extra_seconds: "250" }));
+  assert.throws(() => parseRoute({ ...route, route_options: undefined }));
   assert.throws(() => parseRoute({ ...route, sun: { ...route.sun, elevation_deg: null } }));
   assert.throws(() => parseRoute({ ...route, origin: [43.7] }));
   assert.throws(() => parseRoute({ ...route, contextroute: { ...stats(1), geometry: null } }));
@@ -157,4 +156,22 @@ test("now is read as Toronto wall-clock time, to the minute", () => {
   // 18:07 UTC in June is 14:07 EDT; 03:03 UTC in January is 22:03 EST the day before.
   assert.deepEqual(nowInToronto(new Date("2026-06-21T18:07:00Z")), { date: "2026-06-21", minutes: 14 * 60 + 7 });
   assert.deepEqual(nowInToronto(new Date("2026-01-15T03:03:00Z")), { date: "2026-01-14", minutes: 22 * 60 + 3 });
+});
+
+test("the date picker range is well-formed and covers today", () => {
+  for (const d of [MIN_DATE, MAX_DATE]) assert.match(d, /^\d{4}-\d{2}-\d{2}$/);
+  const today = nowInToronto().date;
+  assert.ok(MIN_DATE <= today && today <= MAX_DATE);
+});
+
+test("the /campus boundary parses to [lat, lon] and point-in-polygon works", () => {
+  // An L-shaped campus: the notch at the top right is outside.
+  const lonLat = [[0, 0], [2, 0], [2, 1], [1, 1], [1, 2], [0, 2], [0, 0]];
+  const ring = parseCampus({ type: "Feature", geometry: { type: "Polygon", coordinates: [lonLat] } });
+  assert.deepEqual(ring[1], [0, 2]);
+  assert.equal(insideRing([0.5, 0.5], ring), true);
+  assert.equal(insideRing([1.5, 0.5], ring), true); // lat 1.5, lon 0.5: the upper arm
+  assert.equal(insideRing([1.5, 1.5], ring), false); // the notch
+  assert.equal(insideRing([3, 0.5], ring), false);
+  assert.throws(() => parseCampus({ type: "Feature", geometry: { type: "Point", coordinates: [0, 0] } }));
 });

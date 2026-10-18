@@ -282,6 +282,11 @@ body {
   height: 6px;
 }
 
+.line-key-campus {
+  border-top: 3px dashed var(--orange-deep);
+  height: 0;
+}
+
 .swatch-shadow {
   background: var(--shade);
   border-radius: 2px;
@@ -627,6 +632,10 @@ body {
   font-size: 0.72rem;
   line-height: 1.45;
   margin: var(--s3) 0 0;
+}
+
+.route-hint-warn {
+  color: var(--orange);
 }
 
 /* Environment */

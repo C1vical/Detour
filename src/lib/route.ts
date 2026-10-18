@@ -24,8 +24,9 @@ export type Weather = {
 
 export type RouteResponse = {
   when: string;
-  w_sun: number;
+  sun_avoidance: number; // 0-100 %
   w_rain: number;
+  route_options: number; // time/shade trade-offs this trip has; the slider picks one
   weather: Weather;
   sun: { elevation_deg: number; azimuth_deg: number; is_daylight: boolean };
   origin: LatLon; // [lat, lon]
@@ -60,16 +61,15 @@ export const CAMPUS_BOUNDS: [LatLon, LatLon] = [
 ];
 export const MIN_ZOOM = 15;
 
-// The backend accepts w_sun 0-50, but routes stop changing well below 10 on
-// campus, so 100 % avoidance maps to w_sun = 10.
-export const MAX_W_SUN = 10;
-export const DEFAULT_AVOIDANCE = 30;
+// Sent as-is: the backend finds every time/shade trade-off of the trip and
+// picks the quickest route that avoids this % of the sun they can avoid.
+export const DEFAULT_AVOIDANCE = 50;
 // "Avoid rain" trades up to 10 s of extra walking for each second out in
 // moderate rain; it only changes the route while it is raining.
 export const AVOID_RAIN_W = 10;
-
-export const sunWeight = (avoidance: number) =>
-  (Math.min(100, Math.max(0, avoidance)) / 100) * MAX_W_SUN;
+// Dates the backend accepts (it answers 422 outside them).
+export const MIN_DATE = "1900-01-01";
+export const MAX_DATE = "2100-12-31";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -101,7 +101,7 @@ export function routeQuery(s: Scenario) {
   const q = new URLSearchParams({
     date: s.date,
     time: minutesToTime(s.minutes),
-    w_sun: String(sunWeight(s.sunAvoidance)),
+    sun_avoidance: String(Math.min(100, Math.max(0, s.sunAvoidance))),
     w_rain: String(s.avoidRain ? AVOID_RAIN_W : 0),
   });
   if (s.start) {
@@ -149,6 +149,7 @@ export function parseRoute(v: unknown): RouteResponse {
     isStats(v.fastest) &&
     isStats(v.contextroute) &&
     isNum(v.extra_seconds) &&
+    isNum(v.route_options) &&
     isNum(v.sun_percent_change) &&
     isObj(v.weather) &&
     ["live", "clear_sky", "unavailable"].includes(v.weather.source as string)
@@ -163,6 +164,32 @@ export function parseShadows(v: unknown): ShadowCollection {
     return v as unknown as ShadowCollection;
   }
   throw new Error("unexpected /shadows response");
+}
+
+// The /campus boundary as a ring of [lat, lon] points (GeoJSON is [lon, lat]).
+export function parseCampus(v: unknown): LatLon[] {
+  const ring =
+    isObj(v) && isObj(v.geometry) && v.geometry.type === "Polygon" && Array.isArray(v.geometry.coordinates)
+      ? v.geometry.coordinates[0]
+      : null;
+  if (Array.isArray(ring) && ring.length >= 4 && ring.every(isLatLon)) {
+    return ring.map(([lon, lat]: number[]) => [lat, lon]);
+  }
+  throw new Error("unexpected /campus response");
+}
+
+// Point-in-polygon by ray casting: is `p` inside the closed `ring`? Pins are only
+// placed inside the campus; the backend checks the same boundary.
+export function insideRing([lat, lon]: LatLon, ring: LatLon[]) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [latI, lonI] = ring[i];
+    const [latJ, lonJ] = ring[j];
+    if (latI > lat !== latJ > lat && lon < ((lonJ - lonI) * (lat - latI)) / (latJ - latI) + lonI) {
+      inside = !inside;
+    }
+  }
+  return inside;
 }
 
 export async function getJson(path: string, signal: AbortSignal): Promise<unknown> {
