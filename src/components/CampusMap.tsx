@@ -300,14 +300,12 @@ export default function CampusMap() {
         <section className="panel-section" aria-labelledby="results-heading">
           <div className="section-head">
             <h2 id="results-heading"><span>01</span>Route</h2>
-            {r && (
-              <p className={route.stale ? "climate-line stale" : "climate-line"}>
-                <span className="climate-sun" aria-hidden="true" />
-                {r.sun.is_daylight ? `Sun ${r.sun.elevation_deg.toFixed(0)}°` : "Sun down"}
-                {" · "}
-                {minutesToTime(minutes)}
-              </p>
-            )}
+            {/* Always shown; the sun angle comes with a route, so it waits for both pins. */}
+            <p className={r && route.stale ? "climate-line stale" : "climate-line"}>
+              <span className="climate-sun" aria-hidden="true" />
+              {r && (r.sun.is_daylight ? `Sun ${r.sun.elevation_deg.toFixed(0)}° · ` : "Sun down · ")}
+              {minutesToTime(minutes)}
+            </p>
           </div>
           {r ? (
             <div className={route.stale ? "route-stats stale" : "route-stats"} aria-busy={route.stale}>
