@@ -45,8 +45,10 @@ Query: `date` (YYYY-MM-DD, 1900-01-01 to 2100-12-31; 422 outside), `time` (HH:MM
 optional `from_lat/from_lon/to_lat/to_lon` pins (default: the demo trip in `backend/trip.py`),
 and `clear_sky=true`, which ignores live weather (clear, dry sky); the frontend doesn't use it.
 
-A pin outside the campus boundary, or more than 150 m from any walkway, is answered with 422; two pins with no
-walkway between them with 404.
+A pin outside the campus boundary is answered with 422. Any pin inside it snaps to the nearest walkway node, however
+far away (the walk graph is one strongly connected component, so every pair of pins has a route); the frontend draws
+a dotted line from each pin to its route. Time and distance count only the walkway part. If both pins snap to the
+same node, both routes are a zero-length line at that node.
 
 Response for the demo trip on 21 June 2026 at 14:00 (geometry shortened):
 

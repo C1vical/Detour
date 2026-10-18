@@ -37,7 +37,6 @@ from .weather import day_weather
 TZ = ZoneInfo("America/Toronto")
 _transformer = Transformer.from_crs(METRIC_CRS, "EPSG:4326", always_xy=True)
 _to_metric = Transformer.from_crs("EPSG:4326", METRIC_CRS, always_xy=True)
-MAX_SNAP_M = 150.0  # a clicked point farther than this from any path is rejected
 # Supported dates; far outside this, datetime.timestamp() fails on some platforms.
 MIN_DATE, MAX_DATE = Date(1900, 1, 1), Date(2100, 12, 31)
 LOCAL_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]  # the Next.js dev server
@@ -188,7 +187,11 @@ def _weather_out(model: ExposureModel, when: datetime, clear_sky: bool) -> Weath
 
 
 def _snap(name: str, latlon: tuple[float, float]) -> int:
-    """Nearest walk-graph node to a (lat, lon), or 422 if the point is off campus or off the network."""
+    """Nearest walk-graph node to a (lat, lon), however far, or 422 if the point is off campus.
+
+    The walk graph is one strongly connected component, so any two snapped pins have a
+    route; the map draws a dotted line from each pin to where its route starts or ends.
+    """
     x, y = _to_metric.transform(latlon[1], latlon[0])
     if not shapely.contains_xy(state.data.campus, x, y):
         raise HTTPException(422, f"{name} is outside York University's Keele Campus")
@@ -199,9 +202,6 @@ def _snap(name: str, latlon: tuple[float, float]) -> int:
         if len(state.snaps) >= MAX_CACHED_SNAPS:
             state.snaps.clear()
         node = state.snaps[latlon] = nearest_node(state.data.graph, latlon)
-    nd = state.data.graph.nodes[node]
-    if np.hypot(nd["x"] - x, nd["y"] - y) > MAX_SNAP_M:
-        raise HTTPException(422, f"{name} is too far from any walkable path")
     return node
 
 
@@ -210,6 +210,11 @@ def _route_geometry(model: ExposureModel, result: RouteResult) -> dict:
     for ei in result.edges:
         pts = list(model.edge_line(ei).coords)
         coords.extend(pts if not coords else pts[1:])
+    if not coords:
+        # Both pins snapped to the same node: a zero-length line at that node, so the
+        # map can still draw the dotted links from each pin to the path.
+        nd = model.graph.nodes[result.nodes[0]]
+        coords = [(nd["x"], nd["y"])] * 2
     return mapping(_to_wgs84(LineString(coords)))
 
 

@@ -363,33 +363,6 @@ body {
   margin: 0;
 }
 
-.climate-line {
-  align-items: center;
-  color: var(--p-muted);
-  display: flex;
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  gap: var(--s2);
-  line-height: 1;
-  margin: 0;
-  transition: opacity 150ms;
-  white-space: pre;
-}
-
-.climate-line.stale {
-  opacity: 0.5;
-}
-
-.climate-sun {
-  background: var(--orange);
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px rgb(242 107 29 / 0.2);
-  display: inline-block;
-  flex: none;
-  height: 7px;
-  width: 7px;
-}
-
 .route-panel button {
   cursor: pointer;
 }
