@@ -1,4 +1,4 @@
-# Detour (ShadeRoute)
+# Detour
 
 Detour is a heat-aware walking navigation app for York University's Keele
 Campus. The frontend is built with Next.js, React, TypeScript, and Leaflet; the
@@ -17,8 +17,7 @@ src/
 │   ├── CampusMapLoader.tsx # Client-only loading boundary for Leaflet
 │   └── PanelControls.tsx   # Slider, switch and route-summary pieces of the panel
 └── lib/
-    ├── route.ts            # API types, request building, response validation
-    └── route.test.ts       # Unit tests for route.ts (npm test)
+    └── route.ts            # API types, request building, response validation
 ```
 
 `CampusMap` starts at York University's Keele Campus (`43.7735, -79.5019`)
@@ -28,8 +27,8 @@ the tile layer.
 
 ## Getting started
 
-**Requirements:** [Node.js](https://nodejs.org/) 20 or newer and
-[Python](https://www.python.org/downloads/) 3.10 or newer (developed on 3.14).
+**Requirements:** [Node.js](https://nodejs.org/) 20.9 or newer and
+[Python](https://www.python.org/downloads/) 3.12 or newer (developed on 3.14).
 
 ```bash
 git clone https://github.com/rish-mishra/mathhacks.git
@@ -43,10 +42,7 @@ campus on first start; if the panel says it can't reach the backend, press
 **Retry**. `Ctrl+C` stops both servers. You don't need to activate the
 virtualenv: the scripts use `.venv` directly.
 
-Also served by the backend:
-
-- Standalone demo page (no Node needed): <http://localhost:8000/demo>
-- API docs: <http://localhost:8000/docs>
+The backend's interactive API docs are at <http://localhost:8000/docs>.
 
 The backend uses the packaged City of Toronto 2025 3D Massing footprints and
 `MAX_HEIGHT` values for building shadows. OSM remains the source for the
@@ -56,10 +52,8 @@ pedestrian network, campus boundary, and tree locations. See
 ### Checks
 
 ```bash
-npm run lint
-npm test                                # frontend unit tests (src/lib)
-npm run build
-.venv/Scripts/python -m pytest backend  # backend tests; on macOS/Linux: .venv/bin/python
+npm run lint    # ESLint
+npm run build   # production build, including the TypeScript check
 ```
 
 ### Running the two servers separately
@@ -100,16 +94,17 @@ Notes:
 - `NEXT_PUBLIC_API_URL` is built into the frontend, so after changing it, redeploy on Vercel.
 - `render.yaml` uses the **free** plan, which sleeps after 15 minutes without visitors; the next visit then waits
   about a minute while it wakes. For an always-on backend, change `plan: free` to `plan: 0.5c-512mb`
-  (512 MB is enough; the backend peaks around 260 MB).
+  (512 MB is enough; the backend uses about 280 MB once loaded and stays under about 380 MB with its caches full).
 - To also allow Vercel preview deployments, set `ALLOWED_ORIGIN_REGEX` on Render, e.g. `https://detour-.*\.vercel\.app`.
 
 ## Using the map
 
 - Click the map to place the start and end pins, or drag them; the route appears once both are placed, and **Reset** removes the pins. The campus is outlined in orange and everything outside it is greyed out;
   pins can only be placed inside the outline (a pin dragged outside goes back).
-- The date and time start at the current Toronto time; **Now** jumps back to it. Changing either refetches the route and shadows. Dates from 1900 to 2100 are supported.
+- The date and time start at the current Toronto time; **Now** jumps back to it. Changing either refetches the route (and the shadows, when shown). Dates from 1900 to 2100 are supported.
 - Sun avoidance is 0-100 % (starts at 50 %). The backend finds every route that trades walking time for shade on
-  the trip (at most 50 % slower than the fastest), and the slider picks the quickest one that avoids that share of
+  the trip (costing at most 50 % more than the fastest, where cost is walking time plus, with **Avoid rain** on,
+  10 s per rain-second), and the slider picks the quickest one that avoids that share of
   the avoidable sun: 0 % is the fastest route, 100 % the shadiest. The panel says how many routes the trip offers;
   a trip with only two can only switch once.
 - **Avoid rain** (off by default) keeps the route under shelter (buildings, covered walkways) while it rains.

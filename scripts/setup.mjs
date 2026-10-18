@@ -16,19 +16,19 @@ function run(cmd, args = []) {
   }
 }
 
-// The first Python 3.10+ on the PATH.
+// The first Python 3.12+ on the PATH (the pinned packages need it).
 function systemPython() {
   for (const cmd of ["python3", "python", "py"]) {
-    const r = spawnSync(cmd, ["-c", "import sys; sys.exit(sys.version_info < (3, 10))"]);
+    const r = spawnSync(cmd, ["-c", "import sys; sys.exit(sys.version_info < (3, 12))"]);
     if (r.status === 0) return cmd;
   }
-  console.error("Python 3.10 or newer is required: install it from https://www.python.org/downloads/");
+  console.error("Python 3.12 or newer is required: install it from https://www.python.org/downloads/");
   process.exit(1);
 }
 
 if (!existsSync(join(ROOT, "node_modules"))) run("npm install");
 if (!venvPython()) run(systemPython(), ["-m", "venv", VENV]);
 run(venvPython(), ["-m", "pip", "install", "--upgrade", "pip"]);
-run(venvPython(), ["-m", "pip", "install", "-r", "requirements-dev.txt"]);
+run(venvPython(), ["-m", "pip", "install", "-r", "requirements.txt"]);
 
 console.log("\nSetup done. Start the app with: npm run dev");

@@ -130,7 +130,7 @@ function useRemote<T>(path: string | null, parse: (v: unknown) => T) {
 }
 
 export default function CampusMap() {
-  // Date and time default to the present; any change below refetches routes and shadows.
+  // Date and time default to the present; any change below refetches the route (and the shadows, when shown).
   const [initialNow] = useState(() => nowInToronto());
   const [date, setDate] = useState(initialNow.date);
   const [minutes, setMinutes] = useState(initialNow.minutes);
@@ -153,11 +153,20 @@ export default function CampusMap() {
   );
 
   // The campus boundary: drawn on the map, and pins can only go inside it.
-  const campus = useRemote("/campus", parseCampus).value;
+  const campusRemote = useRemote("/campus", parseCampus);
+  const campus = campusRemote.value;
   const [notice, setNotice] = useState<string | null>(null);
 
   const r = start && end ? route.value : undefined;
-  const failed = route.error ?? (shadows.error && `shadows: ${shadows.error}`);
+  // The campus fetch fails too if the page loads before the backend is up, so it is
+  // reported and retried with the others; Retry only refetches what failed.
+  const failed =
+    route.error ??
+    (shadows.error && `shadows: ${shadows.error}`) ??
+    (campusRemote.error && `campus outline: ${campusRemote.error}`);
+  const retryFailed = () => {
+    for (const remote of [route, shadows, campusRemote]) if (remote.error) remote.retry();
+  };
 
   // Until the boundary loads, allow any point; the backend rejects off-campus pins too.
   const onCampus = (p: LatLon) => !campus || insideRing(p, campus);
@@ -392,13 +401,7 @@ export default function CampusMap() {
             {failed ? (
               <>
                 Couldn&apos;t update the route: {failed}.{" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    route.retry();
-                    shadows.retry();
-                  }}
-                >
+                <button type="button" onClick={retryFailed}>
                   Retry
                 </button>
               </>

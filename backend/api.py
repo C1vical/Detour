@@ -2,11 +2,10 @@
 
 Run from the repo root:   uvicorn backend.api:app --reload --port 8000
 Interactive docs:          http://localhost:8000/docs
-Demo page (no Next needed): http://localhost:8000/demo
 
 Endpoints
-    GET /route    fastest route vs ContextRoute (demo trip by default, or between clicked points), at a given date/time
-    GET /shadows  building shadows (GeoJSON) at a given date/time, to draw on the map
+    GET /route    fastest route vs the Detour route (demo trip by default, or between clicked points), at a given date/time
+    GET /shadows  building and tree shadows (GeoJSON) at a given date/time, to draw on the map
     GET /campus   the campus boundary (GeoJSON); pins outside it are rejected
     GET /health
 
@@ -18,14 +17,13 @@ from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 from datetime import date as Date, datetime, time as Time
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import numpy as np
 import shapely
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 from pydantic import BaseModel
 from pyproj import Transformer
 from shapely.geometry import LineString, mapping
@@ -37,13 +35,16 @@ from .trip import DEST, ORIGIN, nearest_node
 from .weather import day_weather
 
 TZ = ZoneInfo("America/Toronto")
-STATIC_DIR = Path(__file__).parent / "static"
 _transformer = Transformer.from_crs(METRIC_CRS, "EPSG:4326", always_xy=True)
 _to_metric = Transformer.from_crs("EPSG:4326", METRIC_CRS, always_xy=True)
 MAX_SNAP_M = 150.0  # a clicked point farther than this from any path is rejected
 # Supported dates; far outside this, datetime.timestamp() fails on some platforms.
 MIN_DATE, MAX_DATE = Date(1900, 1, 1), Date(2100, 12, 31)
 LOCAL_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]  # the Next.js dev server
+# /shadows bodies kept: a day's daylight of 15-min slices. A midday body is about 1.5 MB,
+# so this keeps the cache under 100 MB (192 could push a 512 MB server out of memory).
+MAX_CACHED_SHADOWS = 64
+MAX_CACHED_SNAPS = 256  # pin -> nearest graph node
 
 
 def _to_wgs84(geom):
@@ -101,6 +102,7 @@ class State:
     models: dict[tuple[Date, bool], ExposureModel]
     options: dict[tuple, tuple[RouteResult, list[RouteResult]]]
     shadows: dict[int, bytes]  # /shadows response body per time slice
+    snaps: dict[tuple[float, float], int]  # (lat, lon) pin -> nearest graph node
 
 
 state = State()
@@ -116,6 +118,7 @@ async def lifespan(_: FastAPI):
     state.models = {}
     state.options = {}
     state.shadows = {}
+    state.snaps = {}
     yield
 
 
@@ -126,7 +129,7 @@ def allowed_origins(env=os.environ) -> list[str]:
     return LOCAL_ORIGINS + extra
 
 
-app = FastAPI(title="ContextRoute backend", lifespan=lifespan)
+app = FastAPI(title="Detour backend", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins(),
@@ -189,7 +192,13 @@ def _snap(name: str, latlon: tuple[float, float]) -> int:
     x, y = _to_metric.transform(latlon[1], latlon[0])
     if not shapely.contains_xy(state.data.campus, x, y):
         raise HTTPException(422, f"{name} is outside York University's Keele Campus")
-    node = nearest_node(state.data.graph, latlon)
+    # Cached: every slider move resends the same pins, and nearest_node rebuilds a
+    # spatial index of the whole graph on each call.
+    node = state.snaps.get(latlon)
+    if node is None:
+        if len(state.snaps) >= MAX_CACHED_SNAPS:
+            state.snaps.clear()
+        node = state.snaps[latlon] = nearest_node(state.data.graph, latlon)
     nd = state.data.graph.nodes[node]
     if np.hypot(nd["x"] - x, nd["y"] - y) > MAX_SNAP_M:
         raise HTTPException(422, f"{name} is too far from any walkable path")
@@ -298,12 +307,7 @@ def get_shadows(
             geometry = shapely.transform(_to_wgs84(shapely.multipolygons(pieces)), lambda c: np.round(c, 6))
             features = f'{{"type":"Feature","properties":{{}},"geometry":{shapely.to_geojson(geometry)}}}'
         body = f'{{"type":"FeatureCollection","features":[{features}]}}'.encode()
-        if len(state.shadows) > 192:
+        if len(state.shadows) >= MAX_CACHED_SHADOWS:
             state.shadows.clear()
         state.shadows[key] = body
     return Response(body, media_type="application/json")
-
-
-@app.get("/demo", include_in_schema=False)
-def demo_page() -> FileResponse:
-    return FileResponse(STATIC_DIR / "demo.html")

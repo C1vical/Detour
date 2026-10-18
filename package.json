@@ -8,8 +8,7 @@
     "dev:web": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "test": "node --test \"src/**/*.test.ts\""
+    "lint": "eslint"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

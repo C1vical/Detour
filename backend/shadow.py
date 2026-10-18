@@ -1,4 +1,4 @@
-"""Building shadows on flat ground.
+"""Building and tree shadows on flat ground.
 
 All geometry is in a local metric frame: x = east (m), y = north (m).
 
@@ -55,7 +55,8 @@ class ShadowCaster:
     all buildings in one vectorised call.
     Concave footprints (courtyards, L/U shapes): hulls would wrongly fill the
     gaps, so they use the exact per-edge sweep (footprint + one parallelogram
-    per edge). Everything is then merged with a single union.
+    per edge). pieces() returns all of these shapes as they are; shadow() merges them
+    with a single union.
 
     Trees are canopy disks floating above the ground: the crown at height
     `base` casts its shadow `base / tan(theta)` away, the crown top

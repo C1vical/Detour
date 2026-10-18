@@ -14,8 +14,10 @@ Pipeline for one edge e entered at time t_e (walking speed v, length d):
 
 Shade only blocks the direct beam, which is why I(t) is the forecast direct
 radiation rather than total sunlight. The integrals use the trapezoid rule over
-the traversal. Shadows move slowly, so the shade fraction is computed on a
-coarse time grid (`slice_seconds`, default 15 min) and the nearest slice is used.
+the traversal. f is measured as the share of sample points (every 1.5 m along
+the edge) that fall in shadow. Shadows move slowly, so the shade fraction is
+computed on a coarse time grid (`slice_seconds`, default 15 min) and the nearest
+slice is used.
 """
 from __future__ import annotations
 

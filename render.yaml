@@ -6,7 +6,8 @@ services:
     name: detour-api
     runtime: python
     # free sleeps after 15 min without traffic (the next visit waits about a minute);
-    # 0.5c-512mb stays on. The backend peaks around 260 MB, so 512 MB is enough.
+    # 0.5c-512mb stays on. The backend uses about 280 MB once loaded and stays under
+    # about 380 MB with its caches full, so 512 MB is enough.
     plan: free
     region: ohio
     buildCommand: pip install -r requirements.txt

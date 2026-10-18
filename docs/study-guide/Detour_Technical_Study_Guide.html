@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Detour Technical Study Guide</title>
+<style>
+  @page { size: Letter; margin: 15mm 15mm 17mm 15mm;
+    @bottom-right { content: counter(page); font: 8.5pt "Segoe UI", Arial, sans-serif; color: #8a8f98; }
+    @bottom-left { content: "Detour · Technical Study Guide"; font: 8.5pt "Segoe UI", Arial, sans-serif; color: #8a8f98; }
+  }
+  @page :first { @bottom-right { content: none; } @bottom-left { content: none; } }
+  :root { --ink:#1b1d21; --muted:#5d636d; --line:#dfe2e7; --green:#138a3e; --green-bg:#eaf6ee; --red:#e0161b;
+    --orange:#c8520f; --orange-bg:#fdf1e8; --slate:#2f3b4c; --blue:#1f5fbf; --blue-bg:#eaf1fc; --amber-bg:#fff7e0; --code-bg:#f5f6f8; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; font: 10pt/1.48 "Segoe UI", "Helvetica Neue", Arial, sans-serif; color: var(--ink); background: #fff; }
+  h1 { font-size: 21pt; margin: 0 0 4pt; letter-spacing: -0.3pt; }
+  h1 .num { color: var(--orange); font-weight: 700; margin-right: 8pt; }
+  h2 { font-size: 13pt; margin: 16pt 0 5pt; color: var(--ink); border-bottom: 1.5pt solid var(--line); padding-bottom: 2pt; break-after: avoid; }
+  h3 { font-size: 10.5pt; margin: 11pt 0 3pt; color: var(--slate); break-after: avoid; }
+  p { margin: 0 0 6pt; }
+  ul, ol { margin: 0 0 6pt; padding-left: 16pt; }
+  li { margin-bottom: 2pt; }
+  section.chapter { break-before: page; }
+  .lead { font-size: 11pt; color: var(--muted); margin-bottom: 10pt; }
+  code, .mono { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; font-size: 8.6pt; }
+  code { background: var(--code-bg); padding: 0 2.5pt; border-radius: 2pt; }
+  pre { background: var(--code-bg); border-left: 3pt solid var(--slate); padding: 6pt 9pt; margin: 4pt 0 8pt; font-size: 8.2pt; line-height: 1.38; white-space: pre-wrap; break-inside: avoid; border-radius: 2pt; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .file { font-size: 7.8pt; color: var(--muted); margin: 6pt 0 -2pt; font-family: Consolas, monospace; }
+  table { border-collapse: collapse; width: 100%; margin: 4pt 0 9pt; font-size: 9pt; break-inside: avoid; }
+  th { text-align: left; background: #eef0f3; font-weight: 600; padding: 3.5pt 6pt; border-bottom: 1pt solid #c9cdd4; }
+  td { padding: 3.5pt 6pt; border-bottom: 0.6pt solid var(--line); vertical-align: top; }
+  .box { border-radius: 4pt; padding: 7pt 10pt; margin: 6pt 0 9pt; break-inside: avoid; border-left: 4pt solid; }
+  .box .t { font-weight: 700; display: block; margin-bottom: 2pt; font-size: 9.5pt; text-transform: uppercase; letter-spacing: .4pt; }
+  .box p:last-child, .box ul:last-child { margin-bottom: 0; }
+  .key { background: var(--green-bg); border-color: var(--green); } .key .t { color: var(--green); }
+  .warn { background: var(--orange-bg); border-color: var(--orange); } .warn .t { color: var(--orange); }
+  .info { background: var(--blue-bg); border-color: var(--blue); } .info .t { color: var(--blue); }
+  .judge { background: var(--amber-bg); border-color: #c99a06; } .judge .t { color: #8a6a00; }
+  .eq { text-align: center; font-family: "Cambria Math", Cambria, Georgia, serif; font-size: 13pt; margin: 7pt 0 9pt; break-inside: avoid; }
+  .eq.sm { font-size: 11.5pt; }
+  .m { font-family: "Cambria Math", Cambria, Georgia, serif; font-style: italic; font-size: 10.5pt; }
+  .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 2pt; }
+  .frac > span:first-child { border-bottom: 1px solid currentColor; padding: 0 3pt; }
+  .frac > span:last-child { padding: 0 3pt; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; }
+  .grid2 > * { min-width: 0; }
+  figure { margin: 6pt 0 10pt; text-align: center; break-inside: avoid; }
+  figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 3pt; }
+  svg { max-width: 100%; height: auto; }
+  svg text { font-family: "Segoe UI", Arial, sans-serif; }
+  .pill { display: inline-block; padding: 0 5pt; border-radius: 8pt; font-size: 8pt; font-weight: 600; }
+  .p-green { background: var(--green-bg); color: var(--green); } .p-red { background: #fde8e8; color: #b21016; }
+  .p-grey { background: #eef0f3; color: var(--muted); } .p-orange { background: var(--orange-bg); color: var(--orange); }
+  .qa { break-inside: avoid; margin-bottom: 6.5pt; }
+  .qa .q { font-weight: 650; }
+  .qa .q::before { content: "Q" counter(q) ". "; counter-increment: q; color: var(--orange); }
+  .qa .a { margin-left: 0; color: #2b2f36; }
+  .qa-list { counter-reset: q; }
+  .qcat { font-size: 9pt; text-transform: uppercase; letter-spacing: .6pt; color: var(--blue); margin: 10pt 0 4pt; font-weight: 700; break-after: avoid; }
+  .script { border: 1pt solid var(--line); border-radius: 4pt; padding: 8pt 11pt; margin: 6pt 0 9pt; break-inside: avoid; }
+  .script .who { font-weight: 700; color: var(--slate); font-size: 9.5pt; text-transform: uppercase; letter-spacing: .4pt; }
+  .script .time { float: right; color: var(--muted); font-size: 8.5pt; }
+  .top10 li { margin-bottom: 6pt; }
+  .top10 b { color: var(--green); }
+  .toc { columns: 2; column-gap: 22pt; font-size: 10pt; }
+  .toc div { break-inside: avoid; padding: 2pt 0; border-bottom: 0.6pt dotted #cfd3d9; }
+  .toc span { color: var(--orange); font-weight: 700; display: inline-block; width: 20pt; }
+  /* cover */
+  .cover { display: flex; flex-direction: column; gap: 10pt; }
+  .cover-top { background: #1b1b1b; color: #fff; padding: 24pt 26pt 20pt; border-radius: 6pt; border-bottom: 5pt solid var(--orange); }
+  .cover-top .brand { font-size: 40pt; font-weight: 800; letter-spacing: -1pt; }
+  .cover-top .slogan { color: #ff7a2f; font-style: italic; font-size: 13pt; margin-top: -4pt; }
+  .cover-top .title { font-size: 20pt; margin-top: 22pt; font-weight: 600; }
+  .cover-top .sub { color: #c5c9cf; font-size: 11pt; margin-top: 4pt; }
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8pt; margin: 12pt 0; }
+  .stat { border: 1pt solid var(--line); border-radius: 4pt; padding: 7pt 9pt; }
+  .stat b { display: block; font-size: 16pt; color: var(--slate); }
+  .stat span { font-size: 8.5pt; color: var(--muted); }
+  .shot { width: 100%; height: 96mm; object-fit: cover; object-position: center top; border-radius: 4pt; border: 1pt solid var(--line); }
+  pre.long { break-inside: auto; }
+  .small { font-size: 8.6pt; color: var(--muted); }
+  .nobreak { break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- ============================== COVER ============================== -->
+<div class="cover">
+  <div>
+    <div class="cover-top">
+      <div class="brand">Detour</div>
+      <div class="slogan">Walk the cool way.</div>
+      <div class="title">Technical Study Guide</div>
+      <div class="sub">Heat-aware walking navigation for York University's Keele Campus: how the final code works, from the React map to the routing mathematics.</div>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><b>1,804</b><span>walkway intersections (graph vertices)</span></div>
+      <div class="stat"><b>5,172</b><span>directed walkway edges</span></div>
+      <div class="stat"><b>737 + 1,181</b><span>buildings + trees that cast shadows</span></div>
+      <div class="stat"><b>9</b><span>time/shade route options on the demo trip</span></div>
+    </div>
+    <img class="shot" src="app-screenshot.jpg" alt="Detour app screenshot">
+    <p class="small" style="margin-top:4pt">The real app, 18 Oct 2026 at 14:00 with live weather. Green = Detour route (100 % sun avoidance), red dots = fastest route, orange dashes = campus boundary.</p>
+  </div>
+  <div class="small">Written from the code on branch <code>audit/final-overnight</code> after the final audit (18 Oct 2026). Every number in this guide was produced by running the actual code, unless marked otherwise. Frontend: Next.js 16.4.2, React 19.3, Leaflet 1.9 / react-leaflet 5. Backend: Python 3.14, FastAPI 0.143, OSMnx 2.1, Shapely 2.2, pvlib 0.16.</div>
+</div>
+
+<!-- ============================== CONTENTS ============================== -->
+<section class="chapter">
+  <h1>Contents</h1>
+  <div class="toc">
+    <div><span>1</span>Project overview</div>
+    <div><span>2</span>Frontend: Next.js, React, TypeScript</div>
+    <div><span>3</span>Frontend → backend request flow</div>
+    <div><span>4</span>Leaflet and mapping</div>
+    <div><span>5</span>Backend: FastAPI and data</div>
+    <div><span>6</span>Graph theory</div>
+    <div><span>7</span>Routing mathematics and algorithms</div>
+    <div><span>8</span>Sun position</div>
+    <div><span>9</span>Shadow mathematics</div>
+    <div><span>10</span>Exposure mathematics and units</div>
+    <div><span>11</span>Weather</div>
+    <div><span>12</span>Rain</div>
+    <div><span>13</span>Smart / Comfort mode</div>
+    <div><span>14</span>Testing and verification</div>
+    <div><span>15</span>Overnight audit: what changed</div>
+    <div><span>16</span>Limitations (honest list)</div>
+    <div><span>17</span>Judge Q&amp;A (40 questions)</div>
+    <div><span>18</span>Pitches: 30 s, 90 s, 3 min</div>
+    <div><span>19</span>If you only remember 10 things</div>
+  </div>
+
+  <h2>How to use this guide</h2>
+  <ul>
+    <li><b>Everyone</b> should know chapters 1, 3, 7 (the big picture of the algorithm), 16 and 19.</li>
+    <li><b>Frontend person:</b> chapters 2–4. <b>Graph person:</b> 6–7. <b>Math person:</b> 8–10. <b>Backend person:</b> 5, 11, 12, 14.</li>
+    <li>Green boxes are key facts, orange boxes are traps judges like to probe, yellow boxes are likely judge questions.</li>
+  </ul>
+
+  <div class="box warn"><span class="t">The three unit traps</span>
+    <ul>
+      <li><b>Sun avoidance</b> is 0–100 in the UI <i>and</i> in the URL (<code>sun_avoidance=50</code>); the backend divides by 100 and works with 0.5.</li>
+      <li><b>Sun %</b> (<code>sun_percent</code>) is already a percentage when it leaves the backend (e.g. <code>95.1</code>), not a fraction.</li>
+      <li><b>Cloud cover</b> is a fraction 0–1 in the API (<code>0.7</code>) and the UI multiplies it by 100 to show "Cloud 70 %".</li>
+    </ul>
+  </div>
+  <div class="box warn"><span class="t">The coordinate trap</span>
+    <p>The frontend and Leaflet use <code>[latitude, longitude]</code>. GeoJSON uses <code>[longitude, latitude]</code>. The backend computes in metres (UTM zone 17N: x = east, y = north). See §4.4.</p>
+  </div>
+</section>
+
+<!-- ============================== 1 OVERVIEW ============================== -->
+<section class="chapter">
+  <h1><span class="num">1</span>Project overview</h1>
+  <p class="lead">Detour finds walking routes across York University's Keele Campus that keep you out of the direct sun (and, optionally, out of the rain), and shows how much extra walking that costs.</p>
+
+  <h2>1.1 The problem</h2>
+  <p>Normal navigation apps minimise time or distance. On a hot day, the fastest route can be in full sun while a route that is only a minute longer runs along the shady side of buildings and trees. Detour answers: <i>"How much sun can I avoid, and what does it cost me in time?"</i></p>
+
+  <h2>1.2 What the user does</h2>
+  <ol>
+    <li>Clicks the map to place a <b>start</b> pin and an <b>end</b> pin (only inside the campus outline).</li>
+    <li>Chooses a <b>date</b> and <b>time</b> (defaults to "now" in Toronto) and a <b>sun avoidance</b> level from 0 % to 100 %.</li>
+    <li>Optionally turns on <b>Avoid rain</b> and <b>Show shadows</b>.</li>
+    <li>Sees two routes: the <span class="pill p-red">Fastest</span> route (dotted red) and the <span class="pill p-green">Detour</span> route (solid green), with time, distance and sun % for each, plus the live weather used.</li>
+  </ol>
+
+  <h2>1.3 Architecture</h2>
+  <figure>
+    <svg viewBox="0 0 720 300" width="680">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2f3b4c"/></marker></defs>
+      <rect x="10" y="20" width="250" height="250" rx="8" fill="#eaf1fc" stroke="#1f5fbf"/>
+      <text x="135" y="42" text-anchor="middle" font-weight="700" font-size="14" fill="#1f5fbf">Browser (Vercel)</text>
+      <text x="135" y="60" text-anchor="middle" font-size="11" fill="#5d636d">Next.js 16 · React 19 · TypeScript</text>
+      <rect x="25" y="72" width="220" height="40" rx="5" fill="#fff" stroke="#9db5e0"/><text x="135" y="90" text-anchor="middle" font-size="11.5" font-weight="600">CampusMap.tsx</text><text x="135" y="104" text-anchor="middle" font-size="10" fill="#5d636d">state, useRemote hook, Leaflet layers</text>
+      <rect x="25" y="120" width="105" height="40" rx="5" fill="#fff" stroke="#9db5e0"/><text x="77" y="138" text-anchor="middle" font-size="11" font-weight="600">PanelControls</text><text x="77" y="152" text-anchor="middle" font-size="9.5" fill="#5d636d">sliders, switches</text>
+      <rect x="140" y="120" width="105" height="40" rx="5" fill="#fff" stroke="#9db5e0"/><text x="192" y="138" text-anchor="middle" font-size="11" font-weight="600">lib/route.ts</text><text x="192" y="152" text-anchor="middle" font-size="9.5" fill="#5d636d">queries, validation</text>
+      <rect x="25" y="168" width="220" height="40" rx="5" fill="#fff" stroke="#9db5e0"/><text x="135" y="186" text-anchor="middle" font-size="11" font-weight="600">Leaflet + react-leaflet</text><text x="135" y="200" text-anchor="middle" font-size="9.5" fill="#5d636d">map, pins, GeoJSON routes &amp; shadows</text>
+      <rect x="25" y="216" width="220" height="40" rx="5" fill="#fff" stroke="#9db5e0"/><text x="135" y="234" text-anchor="middle" font-size="11" font-weight="600">OpenStreetMap tiles</text><text x="135" y="248" text-anchor="middle" font-size="9.5" fill="#5d636d">background pictures only</text>
+
+      <rect x="420" y="20" width="290" height="250" rx="8" fill="#eaf6ee" stroke="#138a3e"/>
+      <text x="565" y="42" text-anchor="middle" font-weight="700" font-size="14" fill="#138a3e">Python backend (Render)</text>
+      <text x="565" y="60" text-anchor="middle" font-size="11" fill="#5d636d">FastAPI · OSMnx · Shapely · pvlib</text>
+      <rect x="435" y="72" width="260" height="30" rx="5" fill="#fff" stroke="#8cc9a0"/><text x="565" y="91" text-anchor="middle" font-size="11"><tspan font-weight="600">api.py</tspan>  endpoints + caches</text>
+      <rect x="435" y="108" width="125" height="30" rx="5" fill="#fff" stroke="#8cc9a0"/><text x="497" y="127" text-anchor="middle" font-size="11"><tspan font-weight="600">router.py</tspan> A*, Pareto</text>
+      <rect x="570" y="108" width="125" height="30" rx="5" fill="#fff" stroke="#8cc9a0"/><text x="632" y="127" text-anchor="middle" font-size="11"><tspan font-weight="600">exposure.py</tspan> S, W</text>
+      <rect x="435" y="144" width="80" height="30" rx="5" fill="#fff" stroke="#8cc9a0"/><text x="475" y="163" text-anchor="middle" font-size="11" font-weight="600">sun.py</text>
+      <rect x="523" y="144" width="85" height="30" rx="5" fill="#fff" stroke="#8cc9a0"/><text x="565" y="163" text-anchor="middle" font-size="11" font-weight="600">shadow.py</text>
+      <rect x="616" y="144" width="79" height="30" rx="5" fill="#fff" stroke="#8cc9a0"/><text x="655" y="163" text-anchor="middle" font-size="11" font-weight="600">weather.py</text>
+      <rect x="435" y="180" width="260" height="30" rx="5" fill="#fff" stroke="#8cc9a0"/><text x="565" y="199" text-anchor="middle" font-size="11"><tspan font-weight="600">data.py</tspan>  graph, buildings, trees, campus</text>
+      <rect x="435" y="216" width="260" height="40" rx="5" fill="#f5f6f8" stroke="#c9cdd4"/><text x="565" y="233" text-anchor="middle" font-size="10.5">backend/cache/ (committed files)</text><text x="565" y="248" text-anchor="middle" font-size="9.5" fill="#5d636d">walk.graphml · toronto_buildings.gpkg · trees.gpkg</text>
+
+      <line x1="262" y1="85" x2="418" y2="85" stroke="#2f3b4c" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="340" y="78" text-anchor="middle" font-size="10.5">GET /route, /shadows, /campus</text>
+      <line x1="418" y1="120" x2="262" y2="120" stroke="#2f3b4c" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="340" y="136" text-anchor="middle" font-size="10.5">JSON + GeoJSON</text>
+      <rect x="560" y="280" width="150" height="0"/>
+      <line x1="655" y1="176" x2="655" y2="176"/>
+      <text x="340" y="232" text-anchor="middle" font-size="10" fill="#5d636d">The browser never does routing,</text>
+      <text x="340" y="246" text-anchor="middle" font-size="10" fill="#5d636d">sun, shadow or weather math.</text>
+      <rect x="560" y="276" width="150" height="20" rx="4" fill="#fff7e0" stroke="#c99a06"/><text x="635" y="290" text-anchor="middle" font-size="10">Open-Meteo weather API</text>
+      <line x1="655" y1="175" x2="655" y2="274" stroke="#c99a06" stroke-dasharray="3 3"/>
+    </svg>
+    <figcaption>Figure 1. Two separately deployed programs that talk over HTTP. The frontend draws; the backend thinks.</figcaption>
+  </figure>
+
+  <h2>1.4 Technologies</h2>
+  <table>
+    <tr><th>Layer</th><th>Technology</th><th>What we use it for</th></tr>
+    <tr><td>UI framework</td><td>Next.js 16.4.2 (App Router), React 19.3</td><td>Page shell, components, state, fonts, static build</td></tr>
+    <tr><td>Language</td><td>TypeScript 5</td><td>Type-checked frontend code; API response types</td></tr>
+    <tr><td>Map</td><td>Leaflet 1.9 + react-leaflet 5</td><td>Interactive map, pins, routes, shadow polygons</td></tr>
+    <tr><td>Styling</td><td>Tailwind CSS 4 + <code>globals.css</code></td><td>Layout, panel, Leaflet overrides</td></tr>
+    <tr><td>API server</td><td>FastAPI 0.143 + Uvicorn</td><td>HTTP endpoints, parameter validation, JSON</td></tr>
+    <tr><td>Map data</td><td>OSMnx 2.1 (OpenStreetMap), City of Toronto 3D Massing 2025</td><td>Walk network, campus boundary, trees; building footprints and heights</td></tr>
+    <tr><td>Geometry</td><td>Shapely 2.2, GeoPandas 1.2, pyproj 3.8</td><td>Shadow polygons, spatial index, coordinate conversion</td></tr>
+    <tr><td>Graph</td><td>NetworkX 3.7 (data structure) + our own A* / Pareto search</td><td>Routing</td></tr>
+    <tr><td>Astronomy</td><td>pvlib 0.16 (NREL Solar Position Algorithm)</td><td>Sun elevation and azimuth</td></tr>
+    <tr><td>Weather</td><td>Open-Meteo (free, no API key) via httpx</td><td>Direct sunlight, cloud cover, precipitation</td></tr>
+    <tr><td>Checks</td><td>ESLint; <code>next build</code> (TypeScript)</td><td>Lint and type-checked build (test files removed, §14)</td></tr>
+    <tr><td>Hosting</td><td>Vercel (frontend), Render (backend, <code>render.yaml</code>)</td><td>Deploy on every push to <code>main</code></td></tr>
+  </table>
+
+  <h2>1.5 Repository map</h2>
+  <div class="grid2">
+<pre><code>src/
+  app/layout.tsx     root HTML, fonts, CSS
+  app/page.tsx       header + map region
+  app/globals.css    all styling
+  components/
+    CampusMapLoader.tsx  client-only
+    CampusMap.tsx        map + state
+    PanelControls.tsx    UI pieces
+  lib/route.ts       types, queries
+scripts/  setup, dev, venv (.mjs)</code></pre>
+<pre><code>backend/
+  api.py       FastAPI endpoints, caches
+  router.py    A*, Pareto options, pick()
+  exposure.py  shade/shelter, S and W
+  shadow.py    building + tree shadows
+  sun.py       pvlib sun position
+  weather.py   Open-Meteo client
+  data.py      load OSM + Toronto data
+  trip.py      demo trip, nearest_node()
+  cache/  data/</code></pre>
+  </div>
+</section>
+
+<!-- ============================== 2 FRONTEND ============================== -->
+<section class="chapter">
+  <h1><span class="num">2</span>Frontend: Next.js, React, TypeScript</h1>
+  <p class="lead">The frontend is one page. Almost everything interesting happens in <code>CampusMap.tsx</code>; <code>lib/route.ts</code> holds the pure helpers.</p>
+
+  <h2>2.1 Concepts in one table</h2>
+  <table>
+    <tr><th style="width:22%">Concept</th><th>Plain-English meaning</th><th style="width:34%">Where in Detour</th></tr>
+    <tr><td><b>Next.js</b></td><td>A framework on top of React: file-based pages, a build system, fonts, images, server rendering.</td><td><code>src/app/</code>: <code>layout.tsx</code>, <code>page.tsx</code></td></tr>
+    <tr><td><b>React</b></td><td>A library where the UI is a function of data. You describe what the screen should look like for the current data; React updates the page.</td><td>Every <code>.tsx</code> component</td></tr>
+    <tr><td><b>TypeScript</b></td><td>JavaScript with types. Mistakes like passing a string where a number is expected fail at build time.</td><td><code>RouteResponse</code>, <code>LatLon</code>, <code>Scenario</code> types</td></tr>
+    <tr><td><b>Component</b></td><td>A function that returns UI.</td><td><code>CampusMap</code>, <code>Slider</code>, <code>Switch</code>, <code>RoutePair</code></td></tr>
+    <tr><td><b>Props</b></td><td>Inputs passed from a parent to a child component (read-only for the child).</td><td><code>&lt;Slider label="Time" value={minutes} onChange={setMinutes} /&gt;</code></td></tr>
+    <tr><td><b>State</b></td><td>Data a component remembers between renders. Changing it makes React re-render.</td><td>date, minutes, pins, toggles (§2.7)</td></tr>
+    <tr><td><b>useState</b></td><td>Hook that creates one piece of state and its setter.</td><td><code>const [date, setDate] = useState(...)</code></td></tr>
+    <tr><td><b>useEffect</b></td><td>Hook that runs side effects (timers, network) after render, with a cleanup function.</td><td>The fetch inside <code>useRemote</code></td></tr>
+    <tr><td><b>Custom hook</b></td><td>Your own function that uses hooks, so logic can be reused.</td><td><code>useRemote()</code> is used 3 times: route, shadows, campus</td></tr>
+    <tr><td><b>Controlled input</b></td><td>An input whose value comes from React state, and whose <code>onChange</code> updates that state.</td><td>Date input, both sliders, both switches</td></tr>
+    <tr><td><b>Re-render</b></td><td>React calls the component function again after state changes and updates only what differs.</td><td>Every slider move re-renders <code>CampusMap</code></td></tr>
+    <tr><td><b>Event</b></td><td>A user action delivered to a handler function.</td><td>Map click, pin <code>dragend</code>, slider <code>onChange</code>, button <code>onClick</code></td></tr>
+    <tr><td><b>SSR</b></td><td>Server-side rendering: HTML is produced before reaching the browser.</td><td>The header is prerendered as static HTML; the map is not (next row)</td></tr>
+    <tr><td><b>Dynamic import</b></td><td>Load a module only in the browser, later.</td><td><code>CampusMapLoader</code> loads Leaflet with <code>ssr: false</code></td></tr>
+  </table>
+
+  <h2>2.2 <code>layout.tsx</code> and <code>page.tsx</code></h2>
+  <p><b><code>layout.tsx</code></b> is the root of every page. It sets the page title "Detour | Walk the cool way.", the description and icon, loads the Geist fonts with <code>next/font/google</code>, and imports <code>leaflet/dist/leaflet.css</code> and <code>globals.css</code>. It renders <code>&lt;html&gt;&lt;body&gt;{children}&lt;/body&gt;&lt;/html&gt;</code>.</p>
+  <p><b><code>page.tsx</code></b> is a <i>server component</i> (no <code>"use client"</code>). It renders the header (wordmark image via <code>next/image</code>, slogan, "York University · Keele Campus") and a <code>&lt;section&gt;</code> containing <code>&lt;CampusMapLoader /&gt;</code>. The build output shows the route <code>/</code> as <code>○ (Static)</code>: prerendered once at build time.</p>
+
+  <h2>2.3 <code>CampusMapLoader.tsx</code>: why the map is loaded dynamically</h2>
+<pre><code>"use client";
+const CampusMap = dynamic(() =&gt; import("./CampusMap"), {
+  ssr: false,
+  loading: () =&gt; &lt;div aria-label="Loading map" className="campus-map" /&gt;,
+});</code></pre>
+  <div class="box key"><span class="t">Why ssr: false</span>
+    <p>Leaflet reads <code>window</code> and <code>document</code> as soon as it is imported. On the server those do not exist, so importing Leaflet during server rendering would crash. <code>dynamic(..., {ssr:false})</code> means: render an empty placeholder on the server, then download and run <code>CampusMap</code> only in the browser. In Next.js 16 <code>ssr:false</code> is only allowed inside a client component, which is why this tiny wrapper file exists.</p>
+  </div>
+
+  <h2>2.4 <code>CampusMap.tsx</code>: the main component</h2>
+  <p>About 510 lines. It owns all the state, calls the backend through the <code>useRemote</code> hook, draws the Leaflet layers and renders the side panel (sections <b>01 Route</b>, <b>02 Trip</b>, <b>03 Environment</b>).</p>
+
+  <h2>2.5 <code>PanelControls.tsx</code></h2>
+  <p>Presentation-only components; no routing logic.</p>
+  <ul>
+    <li><b><code>Slider</code></b>: a controlled <code>&lt;input type="range"&gt;</code> with a label and a formatted value. Its CSS variable <code>--fill</code> = (value − min)/(max − min) × 100 % colours the track.</li>
+    <li><b><code>Switch</code></b>: a controlled checkbox with <code>role="switch"</code> (accessible toggle).</li>
+    <li><b><code>RoutePair</code> / <code>RouteSummary</code></b>: Detour and Fastest side by side: time (<code>fmtSpan</code>: "1 min 19 sec"), distance (<code>fmtDistance</code>: "427 m" or "1.65 km"), sun %, and rain % only while it is raining. The delta line uses the backend's <code>extra_seconds</code>.</li>
+  </ul>
+
+  <h2>2.6 <code>lib/route.ts</code></h2>
+  <p>Pure helpers with no React and no maths, kept apart from the components: the TypeScript types of the API, constants (campus centre <code>[43.7735, -79.5019]</code>, map bounds, <code>DEFAULT_AVOIDANCE = 50</code>, <code>AVOID_RAIN_W = 10</code>, date range 1900–2100), <code>nowInToronto()</code>, <code>routeQuery()</code>, <code>shadowQuery()</code>, the validators <code>parseRoute / parseShadows / parseCampus</code>, the point-in-polygon test <code>insideRing()</code>, and <code>getJson()</code>.</p>
+
+  <p><b>Toronto time.</b> <code>nowInToronto()</code> uses <code>Intl.DateTimeFormat</code> with <code>timeZone: "America/Toronto"</code>, so the default date and time are Toronto wall-clock time even if the judge's laptop is set to another time zone. For example: 18:07 UTC in June → 14:07 (EDT); 03:03 UTC on 15 Jan → 22:03 on 14 Jan (EST).</p>
+
+  <div class="box info"><span class="t">Weather and "comfort" files</span><p>There are <b>no</b> weather or comfort files in the frontend. The frontend never calls Open-Meteo; it only displays the <code>weather</code> object that the backend includes in each <code>/route</code> response (§11). There is no Smart/Comfort mode in the code (§13).</p></div>
+
+  <h2>2.7 All React state (and what is deliberately <i>not</i> state)</h2>
+  <div class="grid2">
+  <table>
+    <tr><th>State (useState)</th><th>Starts as</th></tr>
+    <tr><td><code>date</code></td><td>today in Toronto</td></tr>
+    <tr><td><code>minutes</code> (0–1439)</td><td>now in Toronto</td></tr>
+    <tr><td><code>sunAvoidance</code> (0–100)</td><td>50</td></tr>
+    <tr><td><code>avoidRain</code></td><td>false</td></tr>
+    <tr><td><code>start</code>, <code>end</code> (<code>LatLon | null</code>)</td><td>null</td></tr>
+    <tr><td><code>placing</code> ("start"|"end")</td><td>"start"</td></tr>
+    <tr><td><code>showShadows</code></td><td>false</td></tr>
+    <tr><td><code>notice</code> (off-campus message)</td><td>null</td></tr>
+    <tr><td>inside each <code>useRemote</code>: <code>loaded</code>, <code>error</code>, <code>attempt</code></td><td>null, null, 0</td></tr>
+  </table>
+  <table>
+    <tr><th>Derived on every render (not state)</th></tr>
+    <tr><td>the request path, e.g. <code>/route?date=…</code></td></tr>
+    <tr><td><code>r</code>: the route to draw (only if both pins exist)</td></tr>
+    <tr><td><code>stale</code>: does the shown data belong to an older path?</td></tr>
+    <tr><td><code>failed</code>: the first error among route, shadows, campus</td></tr>
+    <tr><td>formatted times, distances, percentages</td></tr>
+  </table>
+  </div>
+  <div class="box info"><span class="t">Design principle</span><p>Store the minimum; compute the rest. Because the request path is a plain string computed from state, "did anything change?" is just string comparison, and the same string is the React <code>key</code> for the map layers.</p></div>
+
+</section>
+
+<!-- ============================== 3 FLOW ============================== -->
+<section class="chapter">
+  <h1><span class="num">3</span>Frontend → backend request flow</h1>
+  <p class="lead">What happens between "the user moves a slider" and "the green line moves".</p>
+  <figure>
+    <svg viewBox="0 0 720 470" width="540">
+      <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2f3b4c"/></marker></defs>
+      <g font-size="12">
+        <g><rect x="40" y="8" width="300" height="36" rx="6" fill="#eaf1fc" stroke="#1f5fbf"/><text x="190" y="31" text-anchor="middle"><tspan font-weight="700">1. User interaction</tspan>  click / drag / slide</text></g>
+        <g><rect x="40" y="58" width="300" height="36" rx="6" fill="#eaf1fc" stroke="#1f5fbf"/><text x="190" y="81" text-anchor="middle"><tspan font-weight="700">2. React state</tspan>  setMinutes(841)</text></g>
+        <g><rect x="40" y="108" width="300" height="36" rx="6" fill="#eaf1fc" stroke="#1f5fbf"/><text x="190" y="131" text-anchor="middle"><tspan font-weight="700">3. routeQuery()</tspan>  builds the URL string</text></g>
+        <g><rect x="40" y="158" width="300" height="36" rx="6" fill="#eaf1fc" stroke="#1f5fbf"/><text x="190" y="181" text-anchor="middle"><tspan font-weight="700">4. useRemote</tspan>  wait 150 ms, then fetch</text></g>
+        <g><rect x="380" y="158" width="300" height="36" rx="6" fill="#eaf6ee" stroke="#138a3e"/><text x="530" y="181" text-anchor="middle"><tspan font-weight="700">5. FastAPI</tspan>  validates query parameters</text></g>
+        <g><rect x="380" y="208" width="300" height="36" rx="6" fill="#eaf6ee" stroke="#138a3e"/><text x="530" y="231" text-anchor="middle"><tspan font-weight="700">6. Snap pins</tspan>  to nearest graph nodes</text></g>
+        <g><rect x="380" y="258" width="300" height="36" rx="6" fill="#eaf6ee" stroke="#138a3e"/><text x="530" y="281" text-anchor="middle"><tspan font-weight="700">7. Route calculation</tspan>  fastest + options</text></g>
+        <g><rect x="380" y="308" width="300" height="36" rx="6" fill="#eaf6ee" stroke="#138a3e"/><text x="530" y="331" text-anchor="middle"><tspan font-weight="700">8. JSON + GeoJSON</tspan>  [lon, lat] lines</text></g>
+        <g><rect x="40" y="308" width="300" height="36" rx="6" fill="#eaf1fc" stroke="#1f5fbf"/><text x="190" y="331" text-anchor="middle"><tspan font-weight="700">9. parseRoute()</tspan>  reject bad shapes</text></g>
+        <g><rect x="40" y="358" width="300" height="36" rx="6" fill="#eaf1fc" stroke="#1f5fbf"/><text x="190" y="381" text-anchor="middle"><tspan font-weight="700">10. setLoaded()</tspan>  → React re-render</text></g>
+        <g><rect x="40" y="408" width="300" height="36" rx="6" fill="#eaf1fc" stroke="#1f5fbf"/><text x="190" y="431" text-anchor="middle"><tspan font-weight="700">11. Leaflet</tspan>  new GeoJSON layers drawn</text></g>
+      </g>
+      <g stroke="#2f3b4c" stroke-width="1.5" fill="none" marker-end="url(#a2)">
+        <line x1="190" y1="44" x2="190" y2="56"/><line x1="190" y1="94" x2="190" y2="106"/><line x1="190" y1="144" x2="190" y2="156"/>
+        <line x1="340" y1="176" x2="378" y2="176"/><line x1="530" y1="194" x2="530" y2="206"/><line x1="530" y1="244" x2="530" y2="256"/><line x1="530" y1="294" x2="530" y2="306"/>
+        <line x1="380" y1="326" x2="342" y2="326"/><line x1="190" y1="344" x2="190" y2="356"/><line x1="190" y1="394" x2="190" y2="406"/>
+      </g>
+      <text x="359" y="168" text-anchor="middle" font-size="9" fill="#5d636d">GET</text>
+      <text x="361" y="318" text-anchor="middle" font-size="9" fill="#5d636d">200</text>
+      <rect x="400" y="370" width="300" height="80" rx="6" fill="#fff7e0" stroke="#c99a06"/>
+      <text x="550" y="390" text-anchor="middle" font-size="11" font-weight="700">Cached on the backend</text>
+      <text x="550" y="407" text-anchor="middle" font-size="10.5">Options per (trip, time, rain weight): slider moves</text>
+      <text x="550" y="422" text-anchor="middle" font-size="10.5">skip step 7 (≈15 ms instead of ≈250 ms).</text>
+      <text x="550" y="437" text-anchor="middle" font-size="10.5">Shadows per 15-min slice. Weather per date, 30 min.</text>
+    </svg>
+    <figcaption>Figure 2. One request round-trip. Blue = browser, green = backend.</figcaption>
+  </figure>
+
+  <h2>3.1 The URL that is actually sent</h2>
+<pre><code>GET /route?date=2026-06-21&amp;time=14:00&amp;sun_avoidance=50&amp;w_rain=0
+          &amp;from_lat=43.7735&amp;from_lon=-79.5019&amp;to_lat=43.779&amp;to_lon=-79.496</code></pre>
+  <p><code>routeQuery()</code> clamps <code>sun_avoidance</code> to 0–100, sends <code>w_rain=10</code> when "Avoid rain" is on (else 0), and sends pins as separate lat/lon numbers. Shadows use a different, smaller query (<code>shadowQuery</code>: only <code>date</code> and <code>time</code>), because shadows do not depend on pins, sun avoidance or rain.</p>
+
+  <h2>3.2 The custom hook <code>useRemote</code></h2>
+  <p class="file">src/components/CampusMap.tsx</p>
+<pre class="long"><code>useEffect(() =&gt; {
+  if (!path) return;                       // null path = don't fetch (e.g. pins not placed)
+  const controller = new AbortController();
+  const timer = setTimeout(async () =&gt; {   // debounce: wait 150 ms
+    try {
+      const value = parse(await getJson(path, controller.signal));
+      if (controller.signal.aborted) return;
+      setLoaded({ path, value });          // remember WHICH path this answer belongs to
+      setError(null);
+    } catch (e) {
+      if (controller.signal.aborted) return;
+      setError({ path, message: e instanceof Error ? e.message : String(e) });
+    }
+  }, 150);
+  return () =&gt; { clearTimeout(timer); controller.abort(); };   // cleanup
+}, [path, parse, attempt]);</code></pre>
+
+  <div class="grid2">
+  <div>
+  <h3>Debounce (150 ms)</h3>
+  <p>Dragging the time slider from 14:00 to 14:20 changes state 20 times. Each change re-runs the effect, whose cleanup cancels the previous timer. Only when the slider rests for 150 ms does a request go out. Result: one request instead of twenty.</p>
+  <h3>AbortController</h3>
+  <p>If a request is already in flight and the path changes, the cleanup calls <code>controller.abort()</code>. The browser cancels the HTTP request, and the <code>aborted</code> checks guarantee an old answer can never overwrite a newer one (no race condition).</p>
+  </div>
+  <div>
+  <h3>Stale routes</h3>
+  <p><code>stale = loaded.path !== path</code>. While a new answer is loading, the old route stays on the map but is dimmed (lower opacity, Detour dashed <code>"6 8"</code>) and the panel says "Updating...". The user never sees an empty map flash.</p>
+  <h3>Retry</h3>
+  <p>An error is stored with its path, so it only shows while it belongs to the current request. <b>Retry</b> bumps <code>attempt</code>, a dependency of the effect, which re-runs the fetch. After tonight's audit it retries <i>only</i> what failed, including the campus outline (§15).</p>
+  </div>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 700 120" width="640">
+      <line x1="30" y1="70" x2="680" y2="70" stroke="#c9cdd4"/>
+      <g font-size="10">
+        <g fill="#1f5fbf"><circle cx="60" cy="70" r="5"/><circle cx="110" cy="70" r="5"/><circle cx="150" cy="70" r="5"/><circle cx="200" cy="70" r="5"/></g>
+        <text x="60" y="58" text-anchor="middle">14:00</text><text x="110" y="58" text-anchor="middle">14:05</text><text x="150" y="58" text-anchor="middle">14:12</text><text x="200" y="58" text-anchor="middle">14:20</text>
+        <g stroke="#e0161b" stroke-width="1.5"><line x1="60" y1="78" x2="105" y2="78"/><line x1="110" y1="82" x2="145" y2="82"/><line x1="150" y1="86" x2="195" y2="86"/></g>
+        <text x="130" y="104" text-anchor="middle" fill="#e0161b">timers cancelled before 150 ms</text>
+        <rect x="200" y="74" width="150" height="10" fill="#138a3e" opacity=".75"/><text x="275" y="104" text-anchor="middle" fill="#138a3e">150 ms quiet → fetch</text>
+        <rect x="350" y="64" width="190" height="12" fill="#2f3b4c" opacity=".8"/><text x="445" y="58" text-anchor="middle">network + backend</text>
+        <circle cx="560" cy="70" r="6" fill="#138a3e"/><text x="560" y="58" text-anchor="middle">re-render</text>
+        <text x="30" y="20" font-weight="700" font-size="11">Time slider drag</text>
+        <text x="350" y="104" fill="#5d636d">old route shown dimmed (stale) during this whole time</text>
+      </g>
+    </svg>
+    <figcaption>Figure 3. Debounce timeline: four changes, one request.</figcaption>
+  </figure>
+
+  <h2>3.3 API validation: <code>getJson</code> and <code>parseRoute</code></h2>
+  <ul>
+    <li><b><code>getJson</code></b> turns failures into human messages: network failure → <i>"can't reach the backend at http://localhost:8000"</i>; HTTP 422/404 → the backend's <code>detail</code> text (e.g. <i>"start is outside York University's Keele Campus"</i>); an abort is re-thrown untouched so the hook can ignore it.</li>
+    <li><b><code>parseRoute</code></b> checks that the JSON really has finite numbers for seconds/distance/sun %, a geometry object, valid <code>[lat, lon]</code> pairs, a known weather source, etc. If not, it throws <i>"unexpected /route response"</i>, which is shown as an error instead of crashing the page during rendering. <code>isNum</code> rejects <code>NaN</code> and <code>Infinity</code>.</li>
+  </ul>
+  <div class="box judge"><span class="t">Likely question</span><p>"What happens if the backend is asleep?" The free Render plan sleeps after 15 min; the first request waits about a minute while it wakes. If a request fails, the panel shows the error and a Retry button. The map, pins and controls keep working.</p></div>
+</section>
+
+<!-- ============================== 4 LEAFLET ============================== -->
+<section class="chapter">
+  <h1><span class="num">4</span>Leaflet and mapping</h1>
+
+  <h2>4.1 Leaflet vs OpenStreetMap</h2>
+  <div class="grid2">
+    <div class="box info" style="margin:0"><span class="t">OpenStreetMap (OSM)</span><p>A free, community-made <b>map database</b> of the world. We use it twice: (1) the background <b>tile images</b> from <code>tile.openstreetmap.org</code>, and (2) the <b>data</b> the backend downloaded once with OSMnx: footpaths, the campus boundary (OSM way 15396822) and tree locations.</p></div>
+    <div class="box key" style="margin:0"><span class="t">Leaflet</span><p>A JavaScript <b>library</b> that displays an interactive map in the browser: panning, zooming, tiles, markers, lines and polygons. <b>react-leaflet</b> wraps Leaflet so each map layer is a React component.</p></div>
+  </div>
+
+  <h2>4.2 Components used</h2>
+  <table>
+    <tr><th>Component</th><th>Our settings</th></tr>
+    <tr><td><code>MapContainer</code></td><td>centre <code>[43.7735, -79.5019]</code>, zoom 16, <code>minZoom</code> 15, <code>maxBounds</code> = campus box <code>[[43.764,-79.525],[43.785,-79.488]]</code> with viscosity 1 (cannot pan away), scroll-wheel zoom</td></tr>
+    <tr><td><code>TileLayer</code></td><td>OSM tiles + required attribution "© OpenStreetMap contributors"</td></tr>
+    <tr><td><code>Pane</code></td><td>Custom drawing layers with a z-index (stacking order), see Figure 4</td></tr>
+    <tr><td><code>Polygon</code></td><td>Grey "outside campus" mask (a big box with the campus cut out as a hole) + orange dashed campus outline</td></tr>
+    <tr><td><code>GeoJSON</code></td><td>Routes (LineStrings) and shadows (one MultiPolygon), straight from the backend</td></tr>
+    <tr><td><code>Polyline</code></td><td>Short dotted "connector" lines from each pin to where the route starts/ends on the path network</td></tr>
+    <tr><td><code>Marker</code></td><td>Start and end pins: custom <code>divIcon</code>, <code>draggable</code>, with a <code>Tooltip</code></td></tr>
+    <tr><td><code>useMapEvents</code></td><td>Map click → place the next pin (<code>ClickToPlace</code>)</td></tr>
+    <tr><td><code>ZoomControl</code>, <code>ScaleControl</code></td><td>+/− buttons top-left, scale bar bottom-left</td></tr>
+  </table>
+
+  <h2>4.3 Layer order (what is drawn on top of what)</h2>
+  <figure>
+    <svg viewBox="0 0 780 230" width="640">
+      <g font-size="12">
+        <g transform="translate(60,200)"><polygon points="0,0 360,0 420,-30 60,-30" fill="#e8e3d9" stroke="#b3ab9b"/><text x="440" y="-10">tilePane (200): OSM background tiles</text></g>
+        <g transform="translate(60,165)"><polygon points="0,0 360,0 420,-30 60,-30" fill="#f4d9c6" stroke="#c8520f" opacity=".9"/><text x="440" y="-10">"campus" pane (340): grey mask + orange outline</text></g>
+        <g transform="translate(60,130)"><polygon points="0,0 360,0 420,-30 60,-30" fill="#9aa3b0" stroke="#2f3b4c" opacity=".8"/><text x="440" y="-10">"shadows" pane (350): shadow MultiPolygon</text></g>
+        <g transform="translate(60,95)"><polygon points="0,0 360,0 420,-30 60,-30" fill="#d7efdf" stroke="#138a3e"/><text x="440" y="-10">overlayPane (400): routes + connectors</text></g>
+        <g transform="translate(60,60)"><polygon points="0,0 360,0 420,-30 60,-30" fill="#fde2d0" stroke="#e0161b"/><text x="440" y="-10">markerPane (600): start / end pins</text></g>
+      </g>
+    </svg>
+    <figcaption>Figure 4. Leaflet panes, bottom to top. Shadows sit below the overlay pane, so they can never cover a route.</figcaption>
+  </figure>
+
+  <h3>Route casing (the white outline)</h3>
+  <p>Each route is drawn twice: first a wider <b>white</b> line (the "casing"), then the coloured line on top, so the route stands out over any map colour. Order: fastest casing (white, 8.5 px) → fastest (red <code>#e0161b</code>, 5 px, dotted <code>"1 9"</code>) → Detour casing (white, 11 px) → Detour (green <code>#138a3e</code>, 7 px). Detour is drawn last, so it is the "hero" line on top.</p>
+  <h3>Why GeoJSON layers have a <code>key</code></h3>
+  <p>react-leaflet's <code>&lt;GeoJSON&gt;</code> ignores later changes to its <code>data</code> prop. Each layer's <code>key</code> includes the request path (e.g. <code>key={`ctx-${route.path}`}</code>), so when a new answer arrives React throws the old layer away and creates a new one. Style changes such as stale dimming are still applied through the <code>style</code> prop.</p>
+  <h3>Shadows: drawn only when needed</h3>
+  <p>The shadow request path is <code>null</code> while "Show shadows" is off, so nothing is fetched. When on, the backend sends one MultiPolygon of overlapping pieces (≈1.45 MB at midday); Leaflet draws it with <code>fillRule: "nonzero"</code>, which fills overlapping pieces once, so it looks exactly like the merged shadow without the backend having to merge thousands of polygons.</p>
+  <h3>Draggable pins and the campus rule</h3>
+  <p>Pins can only be placed inside the campus polygon. The frontend checks with <code>insideRing()</code> (ray casting: count how many polygon edges a horizontal ray from the point crosses; odd = inside). A pin dragged outside is put back where it was, and a message appears. The backend checks the same polygon again (it never trusts the client) and answers 422 for an off-campus pin, or for a pin more than 150 m from any path.</p>
+
+  <h2>4.4 Coordinate order: the most common bug in mapping</h2>
+  <figure>
+    <svg viewBox="0 0 720 150" width="660">
+      <g font-size="12">
+        <rect x="10" y="10" width="220" height="120" rx="6" fill="#eaf1fc" stroke="#1f5fbf"/>
+        <text x="120" y="32" text-anchor="middle" font-weight="700">Frontend / Leaflet</text>
+        <text x="120" y="62" text-anchor="middle" class="mono" font-family="Consolas" font-size="13">[lat, lon]</text>
+        <text x="120" y="86" text-anchor="middle" font-family="Consolas" font-size="12">[43.7735, -79.5019]</text>
+        <text x="120" y="112" text-anchor="middle" fill="#5d636d" font-size="10.5">pins, origin/destination, LatLon</text>
+        <rect x="250" y="10" width="220" height="120" rx="6" fill="#eaf6ee" stroke="#138a3e"/>
+        <text x="360" y="32" text-anchor="middle" font-weight="700">GeoJSON (standard)</text>
+        <text x="360" y="62" text-anchor="middle" font-family="Consolas" font-size="13">[lon, lat]</text>
+        <text x="360" y="86" text-anchor="middle" font-family="Consolas" font-size="12">[-79.5019, 43.7735]</text>
+        <text x="360" y="112" text-anchor="middle" fill="#5d636d" font-size="10.5">route lines, shadows, /campus</text>
+        <rect x="490" y="10" width="220" height="120" rx="6" fill="#f5f6f8" stroke="#8a8f98"/>
+        <text x="600" y="32" text-anchor="middle" font-weight="700">Backend maths</text>
+        <text x="600" y="62" text-anchor="middle" font-family="Consolas" font-size="13">(x, y) metres</text>
+        <text x="600" y="86" text-anchor="middle" font-size="12">UTM 17N, EPSG:32617</text>
+        <text x="600" y="112" text-anchor="middle" fill="#5d636d" font-size="10.5">x = east, y = north</text>
+      </g>
+    </svg>
+    <figcaption>Figure 5. Three coordinate systems. Lat/lon are angles; the backend converts to metres so lengths and shadows are in metres.</figcaption>
+  </figure>
+  <p>Where the swaps happen in code: <code>parseCampus</code> maps <code>([lon, lat]) =&gt; [lat, lon]</code>; <code>lineEnds</code> reads <code>[a[1], a[0]]</code>; the Leaflet <code>GeoJSON</code> component reads <code>[lon, lat]</code> itself; the backend's pyproj transformers use <code>always_xy=True</code> (x = longitude first). <code>origin</code>/<code>destination</code> in the response are <code>[lat, lon]</code>. During development a test checked that the first route coordinate has <code>-80 &lt; lon &lt; -79</code> and <code>43 &lt; lat &lt; 44</code>.</p>
+</section>
+
+<!-- ============================== 5 BACKEND ============================== -->
+<section class="chapter">
+  <h1><span class="num">5</span>Backend: FastAPI and data</h1>
+  <h2>5.1 FastAPI in one paragraph</h2>
+  <p>FastAPI turns Python functions into HTTP endpoints. The function's parameters become query parameters, and their types and limits are validated automatically: <code>sun_avoidance: float = Query(50.0, ge=0, le=100)</code> means a request with <code>sun_avoidance=101</code> is rejected with HTTP 422 before our code runs. Response models (<code>RouteResponse</code>, Pydantic) guarantee the JSON shape. FastAPI also generates interactive docs at <code>/docs</code>.</p>
+
+  <h2>5.2 Endpoints</h2>
+  <table>
+    <tr><th>Endpoint</th><th>Parameters</th><th>Returns</th></tr>
+    <tr><td><code>GET /route</code></td><td><code>date</code> (1900-01-01..2100-12-31), <code>time</code> (HH:MM Toronto), <code>sun_avoidance</code> 0–100 (default 50), <code>w_rain</code> 0–50 (default 0), <code>from_lat/from_lon/to_lat/to_lon</code> (optional, default = demo trip), hidden <code>clear_sky</code></td><td>Both routes (time, distance, sun %, sun-seconds, rain %, GeoJSON line), sun position, weather, <code>route_options</code>, <code>extra_seconds</code>, changes in sun/rain %</td></tr>
+    <tr><td><code>GET /shadows</code></td><td><code>date</code>, <code>time</code></td><td>GeoJSON FeatureCollection with one MultiPolygon (empty at night)</td></tr>
+    <tr><td><code>GET /campus</code></td><td>none</td><td>GeoJSON Feature: the campus boundary polygon</td></tr>
+    <tr><td><code>GET/HEAD /health</code></td><td>none</td><td><code>{"status":"ok","edges":5172,"buildings":737}</code> (HEAD added for UptimeRobot)</td></tr>
+    <tr><td><code>GET /docs</code></td><td>none</td><td>Auto-generated interactive API docs</td></tr>
+  </table>
+  <p>Error codes: <b>422</b> for invalid input (bad time, out-of-range date, pin outside campus, pin &gt; 150 m from a path, only one of lat/lon), <b>404</b> if no route connects the two points. CORS allows <code>localhost:3000</code> plus the sites in the <code>ALLOWED_ORIGINS</code> environment variable; only GET is allowed.</p>
+
+  <h2>5.3 Start-up (the <code>lifespan</code> function)</h2>
+  <ol>
+    <li><code>load_campus()</code> reads the cached files in <code>backend/cache/</code> (no internet needed): the walk graph, 737 building footprints with heights, 1,181 trees and the campus polygon. (If the cache were missing it would download from OSM via Overpass, rotating 3 mirror servers with exponential back-off.)</li>
+    <li>Builds the base <code>ExposureModel</code>: places <b>121,632 sample points</b> every 1.5 m along all edges, indexes them in an STRtree, and computes each edge's rain shelter fraction. This is done <b>once</b>.</li>
+    <li>Snaps the demo trip's endpoints to graph nodes and creates empty caches.</li>
+  </ol>
+  <p>Uvicorn only opens the port after this finishes, which is why the frontend can briefly report "can't reach the backend" during start-up (then Retry).</p>
+
+  <h2>5.4 Caches (static data loaded once, results reused)</h2>
+  <table>
+    <tr><th>Cache</th><th>Key</th><th>Bound</th><th>Why</th></tr>
+    <tr><td>Campus data, edge table, sample points, shelter</td><td>—</td><td>loaded once</td><td>Never changes while running</td></tr>
+    <tr><td>Exposure model per day</td><td>(date, clear_sky)</td><td>cleared above 32</td><td>Sun schedule for a date; rebuilt when the weather refreshes</td></tr>
+    <tr><td>Route options</td><td>(model, origin, dest, time, w_rain)</td><td>cleared above 64</td><td>Moving only the avoidance slider re-picks from cached options</td></tr>
+    <tr><td>Shade fractions <i>f</i></td><td>15-min slice</td><td>192 slices</td><td>Shadows change slowly; shared by all models</td></tr>
+    <tr><td><code>/shadows</code> response bodies</td><td>15-min slice</td><td><b>64</b> (was 192)</td><td>Each midday body ≈ 1.45 MB; see §15</td></tr>
+    <tr><td>Pin → nearest node <span class="pill p-green">new</span></td><td>(lat, lon)</td><td>256</td><td>Same pins are resent on every slider move</td></tr>
+    <tr><td>Weather per date</td><td>date</td><td>30 min (60 s after a failure)</td><td>Respect the free API, keep requests fast</td></tr>
+  </table>
+
+  <h2>5.5 Where the data comes from</h2>
+  <table>
+    <tr><th>Data</th><th>Source</th><th>Numbers</th></tr>
+    <tr><td>Walk network</td><td>OSM via OSMnx, <code>network_type="walk"</code>, campus + 100 m buffer, projected to UTM 17N</td><td>1,804 nodes, 5,172 directed edges</td></tr>
+    <tr><td>Campus boundary</td><td>OSM way 15396822 "York University, Keele Campus"</td><td>one polygon</td></tr>
+    <tr><td>Buildings</td><td>City of Toronto 3D Massing 2025 (packaged in <code>backend/data/</code>), height = <code>MAX_HEIGHT</code></td><td>737 footprints, tallest 61.5 m</td></tr>
+    <tr><td>Trees</td><td>OSM <code>natural=tree</code> points within 300 m of campus</td><td>1,181 trees</td></tr>
+  </table>
+</section>
+
+<!-- ============================== 6 GRAPH ============================== -->
+<section class="chapter">
+  <h1><span class="num">6</span>Graph theory</h1>
+  <p class="lead">A map of walkways is a graph. Routing is "find the best path through a graph".</p>
+  <div class="eq">G = (V, E)</div>
+  <div class="grid2">
+  <div>
+    <table>
+      <tr><th>Term</th><th>Meaning in Detour</th></tr>
+      <tr><td><b>Vertex</b> (node) <span class="m">v ∈ V</span></td><td>A point where walkways meet or end. Has metric coordinates x, y. |V| = 1,804.</td></tr>
+      <tr><td><b>Edge</b> <span class="m">e = (u, v) ∈ E</span></td><td>A walkway segment from u to v, with a length in metres and its exact curved geometry. |E| = 5,172.</td></tr>
+      <tr><td><b>Directed</b></td><td>Each walkway is stored in both directions (u→v and v→u), because shade is computed per edge entered at a time.</td></tr>
+      <tr><td><b>Multigraph</b></td><td>Two nodes may be joined by several different walkways (<code>key</code> 0, 1, …). NetworkX <code>MultiDiGraph</code>.</td></tr>
+      <tr><td><b>Path</b> <span class="m">P</span></td><td>A sequence of edges e<sub>1</sub>, e<sub>2</sub>, …, e<sub>k</sub> where each ends where the next begins.</td></tr>
+      <tr><td><b>Weight</b> / cost</td><td>A number per edge; the cost of a path is the sum of its edge costs.</td></tr>
+      <tr><td><b>Shortest path</b></td><td>The path from origin to destination with the smallest total cost.</td></tr>
+    </table>
+  </div>
+  <div>
+    <figure style="margin-top:0">
+      <svg viewBox="0 0 330 250" width="320">
+        <rect x="120" y="150" width="90" height="34" fill="#9aa3b0" stroke="#2f3b4c"/>
+        <text x="165" y="171" text-anchor="middle" font-size="10" fill="#fff">40 m building</text>
+        <rect x="90" y="110" width="150" height="40" fill="#2f3b4c" opacity=".18"/>
+        <text x="245" y="128" font-size="9.5" fill="#2f3b4c">shadow</text>
+        <g stroke="#e0161b" stroke-width="3"><line x1="40" y1="60" x2="290" y2="60"/></g>
+        <g stroke="#138a3e" stroke-width="3"><line x1="40" y1="60" x2="40" y2="125"/><line x1="40" y1="125" x2="290" y2="125"/><line x1="290" y1="125" x2="290" y2="60"/></g>
+        <g fill="#fff" stroke="#1b1d21" stroke-width="2"><circle cx="40" cy="60" r="9"/><circle cx="290" cy="60" r="9"/><circle cx="40" cy="125" r="9"/><circle cx="290" cy="125" r="9"/></g>
+        <g font-size="11" font-weight="700" text-anchor="middle"><text x="40" y="64">A</text><text x="290" y="64">B</text><text x="40" y="129">C1</text><text x="290" y="129">C2</text></g>
+        <text x="165" y="52" text-anchor="middle" font-size="10.5" fill="#e0161b">A→B: 100 m, open</text>
+        <text x="165" y="118" text-anchor="middle" font-size="10.5" fill="#138a3e">C1→C2: 100 m, 60 % shaded</text>
+        <text x="30" y="95" text-anchor="end" font-size="10">10 m</text><text x="298" y="95" font-size="10">10 m</text>
+        <text x="165" y="220" text-anchor="middle" font-size="10.5" fill="#5d636d">Sun due south: the shadow falls north,</text>
+        <text x="165" y="234" text-anchor="middle" font-size="10.5" fill="#5d636d">over the middle of the detour.</text>
+      </svg>
+      <figcaption>Figure 6. A small toy graph (worked through in §7.6).</figcaption>
+    </figure>
+  </div>
+  </div>
+  <div class="box key"><span class="t">Why the graph is projected to metres</span><p>OSM stores degrees. One degree of longitude at Toronto is only about 80 km, but one degree of latitude is about 111 km, so distances in degrees are distorted. Projecting to UTM zone 17N (EPSG:32617) makes x and y true metres, so <span class="m">length</span>, <span class="m">straight-line distance</span> and shadow offsets are all directly in metres.</p></div>
+  <h2>6.1 Snapping a pin to the graph</h2>
+  <p>A clicked point is usually not exactly on a node. <code>nearest_node()</code> converts the point to metres and finds the closest node with a k-d tree (OSMnx). If that node is more than 150 m away the pin is rejected. The dotted connector lines on the map show the gap between a pin and the node its route starts from.</p>
+</section>
+
+<!-- ============================== 7 ROUTING ============================== -->
+<section class="chapter">
+  <h1><span class="num">7</span>Routing mathematics and algorithms</h1>
+  <h2>7.1 The general edge cost (router.py)</h2>
+  <div class="eq">cost(<i>e</i>, <i>t</i>) = <i>w<sub>t</sub></i>·<i>τ<sub>e</sub></i> + <i>w<sub>s</sub></i>·<i>S<sub>e</sub></i>(<i>t</i>) + <i>w<sub>r</sub></i>·<i>W<sub>e</sub></i>(<i>t</i>)</div>
+  <table>
+    <tr><th>Symbol</th><th>Meaning</th><th>Unit</th><th>Value in the app</th></tr>
+    <tr><td><span class="m">τ<sub>e</sub> = d<sub>e</sub> / v</span></td><td>time to walk edge e (length d<sub>e</sub>, speed v)</td><td>seconds</td><td>v = 1.4 m/s</td></tr>
+    <tr><td><span class="m">S<sub>e</sub>(t)</span></td><td>sun exposure on e if entered at time t (§10)</td><td>sun-seconds</td><td>computed</td></tr>
+    <tr><td><span class="m">W<sub>e</sub>(t)</span></td><td>rain exposure on e if entered at time t (§12)</td><td>rain-seconds</td><td>computed</td></tr>
+    <tr><td><span class="m">w<sub>t</sub></span></td><td>weight of time</td><td>—</td><td>1</td></tr>
+    <tr><td><span class="m">w<sub>s</sub></span></td><td>seconds of walking traded per sun-second</td><td>s / sun-s</td><td><b>0 in the live API</b> (see 7.4)</td></tr>
+    <tr><td><span class="m">w<sub>r</sub></span></td><td>seconds of walking traded per rain-second</td><td>s / rain-s</td><td>0, or 10 with "Avoid rain"</td></tr>
+  </table>
+  <p>All three terms are measured in seconds, so the weights have a plain meaning: <i>"how many seconds of extra walking would I accept to avoid one second of full sun (or rain)?"</i></p>
+
+  <h2>7.2 Dijkstra's algorithm</h2>
+  <p>Keep a priority queue (a heap) of nodes ordered by the best known cost from the origin. Repeatedly take the cheapest node, mark it settled, and try every outgoing edge: if going through it is cheaper than what a neighbour had, update the neighbour. When the destination is settled, follow the "came from" links backwards to get the path. With non-negative edge costs, the first time a node is settled its cost is optimal.</p>
+
+  <h2>7.3 A* = Dijkstra + a good guess</h2>
+  <p>A* orders the heap by <span class="m">cost so far + h(n)</span>, where <span class="m">h(n)</span> is a lower bound on the remaining cost. Detour uses straight-line walking time:</p>
+  <div class="eq">h(n) = 0.99 · <i>w<sub>t</sub></i> · <span class="frac"><span>straight-line distance(n, goal)</span><span>1.4 m/s</span></span></div>
+  <ul>
+    <li>No walkway can be shorter than the straight line, and every edge costs at least its walking time (sun and rain terms are ≥ 0), so <i>h</i> never overestimates: it is <b>admissible</b> and <b>consistent</b>. A* therefore returns exactly the same route cost as Dijkstra (checked on the real campus during development).</li>
+    <li>The 0.99 "slack" is because OSM edge lengths can be a hair shorter than the projected straight line (measured ratio ≥ 0.9975).</li>
+    <li>Benefit, measured on the demo trip (21 June, 14:00): <b>A* settled 876 nodes vs Dijkstra's 1,703</b>, about half the work.</li>
+  </ul>
+  <p class="small">Time-dependence: <i>S</i> and <i>W</i> depend on the time you enter an edge, so each search label carries its arrival time. Settling by accumulated cost is exact only if arriving earlier never makes the rest of the walk costlier; over a walk of minutes the sun barely moves, so the error is negligible (documented assumption).</p>
+
+  <h2>7.4 How the app really picks the Detour route: the Pareto set</h2>
+  <p>A single weight <span class="m">time + w<sub>s</sub>·sun</span> only finds routes on the <i>convex hull</i> of the time-vs-sun trade-off, so the route "jumps" as the weight changes and some good compromises are never chosen. So the live API does <b>not</b> set <span class="m">w<sub>s</sub></span>. Instead <code>shade_options()</code> finds the <b>Pareto set</b>: every route that no other route beats on <i>both</i> time and sun.</p>
+  <div class="grid2">
+  <div>
+  <ul>
+    <li><b>Algorithm:</b> bicriteria label-setting (Martins' algorithm) with A* keys. A node may hold several labels (cost, sun, arrival time). Labels pop in cost order; a new label at a node is kept only if its sun is lower than every label already kept there.</li>
+    <li><b>Criterion 1:</b> <span class="m">c = τ + w<sub>r</sub>·W</span> (time, plus rain if Avoid rain is on).</li>
+    <li><b>Criterion 2:</b> sun-seconds <span class="m">S</span>.</li>
+    <li><b>Limit 1 (<code>MAX_DETOUR = 0.5</code>):</b> options may cost at most 50 % more than the quickest.</li>
+    <li><b>Limit 2 (<code>SUN_STEP = 0.02</code>):</b> each new option must cut sun by at least 2 % of the quickest route's sun (and at least 1 sun-second), so near-identical routes aren't counted.</li>
+  </ul>
+  </div>
+  <div>
+  <figure style="margin:0">
+    <svg viewBox="0 0 330 250" width="320">
+      <line x1="45" y1="210" x2="315" y2="210" stroke="#1b1d21"/><line x1="45" y1="210" x2="45" y2="15" stroke="#1b1d21"/>
+      <text x="180" y="240" text-anchor="middle" font-size="11">walking time (s)</text>
+      <text x="14" y="112" text-anchor="middle" font-size="11" transform="rotate(-90 14 112)">sun-seconds</text>
+      <g font-size="9" fill="#5d636d"><text x="55" y="224">1178</text><text x="275" y="224">1478</text><text x="40" y="34" text-anchor="end">961</text><text x="40" y="200" text-anchor="end">691</text></g>
+      <!-- x: 1177.7 -> 60, 1477.9 -> 300 ; y: 961.3 -> 30, 690.5 -> 195 -->
+      <polyline fill="none" stroke="#138a3e" stroke-width="1.5" stroke-dasharray="3 3" points="60,30 63.6,50.8 68.8,69.4 69.1,94.2 93.2,111.4 98.4,130.1 98.7,154.8 166.4,173.7 300,195"/>
+      <g fill="#138a3e"><circle cx="60" cy="30" r="4.5" fill="#e0161b"/><circle cx="63.6" cy="50.8" r="3.5"/><circle cx="68.8" cy="69.4" r="3.5"/><circle cx="69.1" cy="94.2" r="3.5"/><circle cx="93.2" cy="111.4" r="3.5"/><circle cx="98.4" cy="130.1" r="5" stroke="#1b1d21" stroke-width="1.5"/><circle cx="98.7" cy="154.8" r="3.5"/><circle cx="166.4" cy="173.7" r="3.5"/><circle cx="300" cy="195" r="3.5"/></g>
+      <line x1="45" y1="125.6" x2="315" y2="125.6" stroke="#c8520f" stroke-dasharray="4 3"/>
+      <text x="312" y="120" text-anchor="end" font-size="9.5" fill="#c8520f">target at 50 %: 825.9</text>
+      <text x="106" y="138" font-size="9.5">picked: 1225.7 s</text>
+      <text x="68" y="28" font-size="9.5" fill="#e0161b">fastest</text>
+      <text x="292" y="186" text-anchor="end" font-size="9.5">shadiest</text>
+    </svg>
+    <figcaption>Figure 7. The 9 Pareto options of the demo trip (21 June 14:00, clear-sky model). Every point is a real route.</figcaption>
+  </figure>
+  </div>
+  </div>
+
+  <h2>7.5 The slider: <code>pick()</code></h2>
+  <p class="file">backend/router.py</p>
+<pre><code>def pick(options, avoidance):          # avoidance = sun_avoidance / 100, so 0..1
+    most, least = options[0].sun_seconds, options[-1].sun_seconds
+    target = most - avoidance * (most - least)
+    return next(r for r in options if r.sun_seconds &lt;= target + 1e-9)</code></pre>
+  <div class="eq sm">target = S<sub>fastest</sub> − <i>p</i> · (S<sub>fastest</sub> − S<sub>shadiest</sub>) &nbsp;&nbsp; then choose the <b>quickest</b> option with S ≤ target</div>
+  <p>Sun avoidance <i>p</i> means "avoid at least <i>p</i> of the sun that <i>can</i> be avoided on this trip". 0 % = fastest, 100 % = shadiest option. Options are already sorted quickest-first, so the first one that meets the target is the quickest that does.</p>
+
+  <h2>7.6 Worked example 1: the toy graph (real numbers from the code)</h2>
+  <p>Sun at 13:15 on 21 June: elevation 69.6°, azimuth 176.8°; clear-sky intensity <span class="m">I = sin 69.6° = 0.938</span>. The middle detour edge is 59.7 % shaded.</p>
+  <table>
+    <tr><th>Edge</th><th>Length</th><th>τ = d / 1.4</th><th>shade f</th><th>S = τ · I · (1 − f)</th></tr>
+    <tr><td>A→B</td><td>100 m</td><td>71.43 s</td><td>0</td><td>66.97</td></tr>
+    <tr><td>A→C1</td><td>10 m</td><td>7.14 s</td><td>0</td><td>6.70</td></tr>
+    <tr><td>C1→C2</td><td>100 m</td><td>71.43 s</td><td>0.597</td><td>26.99</td></tr>
+    <tr><td>C2→B</td><td>10 m</td><td>7.14 s</td><td>0</td><td>6.70</td></tr>
+  </table>
+  <div class="grid2">
+  <table>
+    <tr><th>Route</th><th>Time T</th><th>Sun S</th><th>Sun %</th></tr>
+    <tr><td><span class="pill p-red">Direct</span> A→B</td><td>71.4 s</td><td>66.97</td><td>100 %</td></tr>
+    <tr><td><span class="pill p-green">Detour</span> A→C1→C2→B</td><td>85.7 s</td><td>40.38</td><td>50.2 %</td></tr>
+  </table>
+  <table>
+    <tr><th>w<sub>s</sub></th><th>Direct cost</th><th>Detour cost</th><th>Winner</th></tr>
+    <tr><td>0.5</td><td>71.4 + 33.5 = <b>104.9</b></td><td>85.7 + 20.2 = 105.9</td><td>Direct</td></tr>
+    <tr><td>1</td><td>71.4 + 67.0 = 138.4</td><td>85.7 + 40.4 = <b>126.1</b></td><td>Detour</td></tr>
+  </table>
+  </div>
+  <p>Interpretation: the detour costs 14.3 s more and avoids 26.6 sun-seconds. It is worth it only if you value a sun-second at more than 14.3 / 26.6 ≈ 0.54 s of walking. With the slider, the Pareto set here has 2 options, so any avoidance above 0 % picks the detour.</p>
+
+  <h2>7.7 Worked example 2: the real demo trip at 50 %</h2>
+  <p>S<sub>fastest</sub> = 961.3, S<sub>shadiest</sub> = 690.5 (sun-seconds). Target = 961.3 − 0.5 × 270.8 = <b>825.9</b>. The quickest option with S ≤ 825.9 has S = 797.1, T = 1,225.7 s vs 1,177.7 s fastest: <b>+48 s of walking, sun 88.5 % → 70.6 %</b>.</p>
+</section>
+
+<!-- ============================== 8 SUN ============================== -->
+<section class="chapter">
+  <h1><span class="num">8</span>Sun position</h1>
+  <div class="grid2">
+  <div>
+  <table>
+    <tr><th>Quantity</th><th>Definition (backend convention)</th></tr>
+    <tr><td><b>Elevation θ</b></td><td>Angle of the sun above the horizon. 0° = on the horizon, 90° = straight overhead.</td></tr>
+    <tr><td><b>Azimuth α</b></td><td>Compass direction of the sun, degrees clockwise from north: 90° = east, 180° = south, 270° = west.</td></tr>
+    <tr><td><b>Daylight</b></td><td><code>is_up</code>: elevation &gt; 0°.</td></tr>
+  </table>
+  <p>Computed with <b>pvlib</b> (NREL's Solar Position Algorithm) for the campus centre (43.7735° N, 79.5019° W), using <i>apparent</i> elevation (includes atmospheric refraction). For speed, <code>SunSchedule</code> computes all 1,441 minutes of a day once (00:00…24:00) and then just looks values up.</p>
+  </div>
+  <figure style="margin-top:0">
+    <svg viewBox="0 0 320 220" width="300">
+      <line x1="20" y1="180" x2="300" y2="180" stroke="#1b1d21"/>
+      <circle cx="160" cy="180" r="4" fill="#1b1d21"/>
+      <text x="160" y="200" text-anchor="middle" font-size="10.5">walker</text>
+      <line x1="160" y1="180" x2="270" y2="70" stroke="#c8520f" stroke-width="2"/>
+      <circle cx="275" cy="65" r="13" fill="#ffb02e" stroke="#c8520f"/>
+      <path d="M 210 180 A 50 50 0 0 0 195.4 144.6" fill="none" stroke="#1f5fbf" stroke-width="1.5"/>
+      <text x="216" y="164" font-size="13" fill="#1f5fbf" font-style="italic">θ</text>
+      <text x="30" y="172" font-size="10" fill="#5d636d">horizon</text>
+      <text x="200" y="60" font-size="10.5">elevation θ</text>
+      <text x="160" y="20" text-anchor="middle" font-size="10.5" fill="#5d636d">azimuth α = compass direction of the sun</text>
+    </svg>
+  </figure>
+  </div>
+  <h2>8.1 Real values at York (from the code)</h2>
+  <table>
+    <tr><th>Date and time (Toronto)</th><th>Elevation</th><th>Azimuth</th><th>Comment</th></tr>
+    <tr><td>21 June, 09:00</td><td>33.8°</td><td>88.7°</td><td>morning sun from the east</td></tr>
+    <tr><td>21 June, 13:15</td><td>69.6°</td><td>176.8°</td><td>near solar noon (EDT shifts noon past 13:00)</td></tr>
+    <tr><td>21 June, 18:00</td><td>30.1°</td><td>274.7°</td><td>evening sun from the west</td></tr>
+    <tr><td>20 March, 13:20</td><td>46.3°</td><td>178.1°</td><td>equinox: 90° − latitude ≈ 46.2°</td></tr>
+    <tr><td>21 December, 12:15</td><td>22.8°</td><td>179.7°</td><td>winter: low sun, long shadows</td></tr>
+  </table>
+  <div class="box info"><span class="t">Toronto local time vs UTC</span><p>All dates/times in the API are Toronto wall-clock time (<code>ZoneInfo("America/Toronto")</code>, EDT = UTC−4 in summer, EST = UTC−5 in winter). They are converted to UTC only when calling pvlib. Sun positions were checked on both DST-change days during development.</p></div>
+  <div class="box judge"><span class="t">Likely question</span><p>"Why not compute the sun once for the whole route?" The router does use the time each edge is entered, but sun position changes only ~0.25° per minute, so shadows are recomputed every 15 minutes (nearest slice), while sun <i>intensity</i> is interpolated to the second.</p></div>
+</section>
+
+<!-- ============================== 9 SHADOWS ============================== -->
+<section class="chapter">
+  <h1><span class="num">9</span>Shadow mathematics</h1>
+  <h2>9.1 Shadow length</h2>
+  <div class="grid2">
+  <div>
+  <div class="eq">L = <span class="frac"><span>h</span><span>tan(θ)</span></span></div>
+  <p><b>In plain English:</b> the sun ray from the top of a building of height <i>h</i> hits the ground a distance <i>L</i> away. The ray, the wall and the ground make a right-angled triangle; tan(θ) = opposite / adjacent = <i>h</i> / <i>L</i>, so <i>L</i> = <i>h</i> / tan(θ). The lower the sun, the smaller tan(θ), the longer the shadow.</p>
+  </div>
+  <figure style="margin-top:0">
+    <svg viewBox="0 0 320 200" width="300">
+      <line x1="10" y1="160" x2="310" y2="160" stroke="#1b1d21"/>
+      <rect x="40" y="60" width="40" height="100" fill="#9aa3b0" stroke="#2f3b4c"/>
+      <rect x="80" y="155" width="180" height="5" fill="#2f3b4c" opacity=".55"/>
+      <line x1="80" y1="60" x2="260" y2="160" stroke="#c8520f" stroke-width="2" stroke-dasharray="5 3"/>
+      <line x1="310" y1="0" x2="80" y2="60" stroke="none"/>
+      <path d="M 225 160 A 35 35 0 0 1 229.3 142.5" fill="none" stroke="#1f5fbf" stroke-width="1.5"/>
+      <text x="212" y="152" font-size="13" fill="#1f5fbf" font-style="italic">θ</text>
+      <text x="32" y="115" text-anchor="end" font-size="13" font-style="italic">h</text>
+      <text x="170" y="182" text-anchor="middle" font-size="13" font-style="italic">L</text>
+      <circle cx="292" cy="30" r="12" fill="#ffb02e" stroke="#c8520f"/>
+      <line x1="280" y1="37" x2="250" y2="52" stroke="#c8520f"/>
+    </svg>
+  </figure>
+  </div>
+  <table>
+    <tr><th>Sun elevation θ</th><th>tan θ</th><th>Shadow of a 20 m building</th><th>Shadow of the tallest (61.5 m)</th></tr>
+    <tr><td>69.6° (June noon)</td><td>2.69</td><td>7.4 m</td><td>22.9 m</td></tr>
+    <tr><td>46.3° (equinox noon)</td><td>1.05</td><td>19.1 m</td><td>58.8 m</td></tr>
+    <tr><td>30°</td><td>0.577</td><td>34.6 m</td><td>106.6 m</td></tr>
+    <tr><td>22.8° (Dec noon)</td><td>0.420</td><td>47.6 m</td><td>146.4 m</td></tr>
+    <tr><td>3° (cut-off)</td><td>0.052</td><td>381.6 m → capped at 300 m</td><td>capped at 300 m</td></tr>
+  </table>
+  <p>Two safety rules from <code>shadow.py</code>: below <b>3°</b> no shadows are computed (tan θ → 0 makes L → ∞ and the model stops being meaningful); every shadow is capped at <b>300 m</b>.</p>
+
+  <h2>9.2 Shadow direction</h2>
+  <p>The shadow points away from the sun. With azimuth α measured clockwise from north (x = east, y = north), the ground offset of the roof is:</p>
+  <div class="eq">(Δx, Δy) = ( −L·sin α,&nbsp; −L·cos α )</div>
+  <p>Check: sun due south (α = 180°): sin = 0, cos = −1 → (0, +L): shadow points north ✔. Sun in the east (α = 90°): (−L, 0): shadow points west ✔ (both were checked by unit tests during development).</p>
+  <p class="file">backend/shadow.py (inside ShadowCaster.pieces)</p>
+<pre><code>tan_el = math.tan(math.radians(sun.elevation))      # degrees -&gt; radians before tan!
+alpha = math.radians(sun.azimuth)
+direction = np.array([-math.sin(alpha), -math.cos(alpha)])
+high = np.minimum(self._cvx_h / tan_el, MAX_SHADOW_LENGTH_M)   # L = h / tan(theta), capped</code></pre>
+
+  <h2>9.3 From one point to a whole building</h2>
+  <div class="grid2">
+  <div>
+  <p>A building is modelled as a <b>prism</b>: its footprint polygon extruded straight up to height <i>h</i>. Its shadow on flat ground is the footprint <b>swept</b> along the offset vector.</p>
+  <ul>
+    <li><b>Convex footprints</b> (area ≥ 98 % of their convex hull, no holes): shadow = convex hull of the footprint and its shifted copy. Computed for all such buildings in one vectorised call.</li>
+    <li><b>Concave footprints</b> (L, U shapes, courtyards): a hull would wrongly fill the courtyard, so each wall edge sweeps a parallelogram; shadow = footprint + all parallelograms. During development a unit test confirmed that a U-shaped building keeps its sunlit gap.</li>
+  </ul>
+  </div>
+  <figure style="margin-top:0">
+    <svg viewBox="0 0 300 190" width="290">
+      <polygon points="40,150 110,150 110,110 40,110" fill="#9aa3b0" stroke="#2f3b4c"/>
+      <polygon points="40,110 110,110 110,150 150,100 150,60 80,60" fill="#2f3b4c" opacity=".25" stroke="#2f3b4c" stroke-dasharray="3 2"/>
+      <polygon points="80,60 150,60 150,100 80,100" fill="none" stroke="#2f3b4c" stroke-dasharray="3 2"/>
+      <line x1="110" y1="110" x2="150" y2="60" stroke="#c8520f" stroke-width="1.5"/>
+      <text x="75" y="134" text-anchor="middle" font-size="10" fill="#fff">footprint</text>
+      <text x="115" y="50" text-anchor="middle" font-size="10">shifted copy</text>
+      <text x="165" y="88" font-size="10" fill="#c8520f">offset (Δx, Δy)</text>
+      <text x="150" y="180" text-anchor="middle" font-size="10" fill="#5d636d">convex hull of both = the shadow</text>
+    </svg>
+  </figure>
+  </div>
+
+  <h2>9.4 Trees</h2>
+  <p>OSM trees have no size data, so every tree gets the same crown: a 12-sided disk of radius <b>3 m</b> floating from <b>2 m</b> (canopy base) to <b>9 m</b> (top); the trunk is ignored. The crown base casts its shadow 2 / tan θ away and the top 9 / tan θ away; the tree's shadow is the convex hull of those two shifted disks. Consequence: the ground directly under a tree is shaded only when the sun is high (checked: shaded at 89°, not at 20°, where the base shadow is 2 / tan 20° ≈ 5.5 m away, beyond the 3 m crown).</p>
+
+  <h2>9.5 Which walkway parts are in shadow?</h2>
+  <p>Sample points every <b>1.5 m</b> along each edge (at least 2 per edge; 121,632 in total). For each 15-minute time slice, the shadow pieces are tested against an STRtree of those points. The <b>shade fraction</b> is:</p>
+  <div class="eq sm">f(e) = <span class="frac"><span>number of e's sample points inside any shadow</span><span>number of e's sample points</span></span></div>
+  <p>During development a test compared this to exact line-polygon overlap on the whole campus at 9:00, 13:00 and 17:00: the length-weighted difference was under 0.5 percentage points. Walkways inside building footprints count as fully shaded (indoor connections).</p>
+</section>
+
+<!-- ============================== 10 EXPOSURE ============================== -->
+<section class="chapter">
+  <h1><span class="num">10</span>Exposure mathematics and units</h1>
+  <h2>10.1 Sun intensity <i>I</i>(<i>t</i>)</h2>
+  <div class="eq sm">I(t) = <span class="frac"><span>direct radiation(t) &nbsp;[W/m²]</span><span>1000 W/m²</span></span> &nbsp;&nbsp; (live weather) &nbsp;&nbsp;&nbsp; or &nbsp;&nbsp;&nbsp; I(t) = max(0, sin θ(t)) &nbsp;&nbsp; (clear-sky fallback)</div>
+  <p>Shade only blocks the <b>direct beam</b>; diffuse skylight reaches you in the shade too. So intensity uses Open-Meteo's <i>direct</i> radiation, not total sunlight. Under full overcast the direct beam is ~0, so there is nothing to avoid, and the Detour and Fastest routes coincide. This is how <b>clouds affect routing</b>: through direct radiation, not through the cloud-cover number.</p>
+
+  <h2>10.2 Sun-seconds on one edge</h2>
+  <div class="eq">S<sub>e</sub> = ∫<sub><i>t<sub>e</sub></i></sub><sup><i>t<sub>e</sub></i>+<i>τ<sub>e</sub></i></sup> I(t) · (1 − f) dt &nbsp;≈&nbsp; τ<sub>e</sub> · <span class="frac"><span>I(t<sub>e</sub>) + I(t<sub>e</sub> + τ<sub>e</sub>)</span><span>2</span></span> · (1 − f)</div>
+  <p>A <b>sun-second</b> is one second spent in full-strength direct sun (<i>I</i> = 1, no shade). The integral is approximated with the trapezoid rule (average of the intensity at entry and exit), and <i>f</i> comes from the nearest 15-minute shadow slice.</p>
+  <div class="box key"><span class="t">Worked example</span><p>A 14 m edge: τ = 14 / 1.4 = 10 s. Intensity 0.80 at entry, 0.82 at exit, shade f = 0.25.<br>S = 10 × (0.80 + 0.82)/2 × (1 − 0.25) = 10 × 0.81 × 0.75 = <b>6.08 sun-seconds</b>.</p></div>
+
+  <h2>10.3 Route totals and "Sun %"</h2>
+  <div class="eq sm">T = Σ τ<sub>e</sub> &nbsp;&nbsp;&nbsp; S(P) = Σ S<sub>e</sub> &nbsp;&nbsp;&nbsp; S<sub>open</sub>(P) = Σ S<sub>e</sub> with f = 0 &nbsp;&nbsp;&nbsp; <b>sun % = 100 × S(P) / S<sub>open</sub>(P)</b></div>
+  <p>Each edge is entered at the time you actually reach it (start time + time walked so far). <b>Sun %</b> = the share of the sun this path <i>could</i> give you that it actually gives you. It is about shade, not weather: if intensity is the same everywhere, it cancels, and sun % ≈ the time-weighted share of the walk that is unshaded. At night or under full overcast, S<sub>open</sub> = 0 and sun % is defined as 0.</p>
+  <div class="box warn"><span class="t">Percent vs fraction: exact conventions</span>
+    <table style="margin:2pt 0 0">
+      <tr><th>Quantity</th><th>UI shows</th><th>Sent / returned</th><th>Used in maths as</th></tr>
+      <tr><td>Sun avoidance</td><td>50 %</td><td><code>sun_avoidance=50</code></td><td>0.5 (<code>/ 100</code> in <code>api.py</code>)</td></tr>
+      <tr><td>Sun % of a route</td><td>78 %</td><td><code>"sun_percent": 78.4</code> (already %)</td><td>computed as 100 × S / S<sub>open</sub></td></tr>
+      <tr><td>Cloud cover</td><td>Cloud 70 %</td><td><code>"cloud_cover": 0.7</code> (fraction)</td><td>display only</td></tr>
+      <tr><td>Shade fraction f, shelter g</td><td>—</td><td>not sent</td><td>0–1</td></tr>
+      <tr><td>Intensity I, rain R</td><td>—</td><td>not sent</td><td>0–1 (I can slightly exceed 1)</td></tr>
+    </table>
+  </div>
+  <h2>10.4 Unit table</h2>
+  <table>
+    <tr><th>Quantity</th><th>Unit</th><th>Note</th></tr>
+    <tr><td>distance, length, shadow length</td><td>metres</td><td>UI shows km above 1,000 m</td></tr>
+    <tr><td>time τ, T, <code>extra_seconds</code></td><td>seconds</td><td>UI formats as "7 min 18 sec"; time of day is minutes after midnight (0–1439) in the frontend</td></tr>
+    <tr><td>speed</td><td>m/s</td><td>constant 1.4 m/s ≈ 5 km/h</td></tr>
+    <tr><td>angles</td><td>degrees in API/UI</td><td>converted to radians (<code>math.radians</code>) before sin/tan</td></tr>
+    <tr><td>radiation</td><td>W/m²</td><td>divided by 1000 for intensity</td></tr>
+    <tr><td>precipitation</td><td>mm/h</td><td>divided by 4 and capped at 1 for rain intensity</td></tr>
+  </table>
+</section>
+
+<!-- ============================== 11 WEATHER ============================== -->
+<section style="margin-top:18pt">
+  <h1><span class="num">11</span>Weather</h1>
+  <table>
+    <tr><th style="width:28%">Question</th><th>Answer (from <code>weather.py</code> and <code>api.py</code>)</th></tr>
+    <tr><td>Provider</td><td><b>Open-Meteo</b> (free, no API key). Forecast API (about 3 months back to 16 days ahead), then the archive API for older dates.</td></tr>
+    <tr><td>Variables fetched</td><td>Hourly <code>direct_radiation</code> (W/m²), <code>cloud_cover</code> (%), <code>precipitation</code> (mm) for one day, Toronto time zone.</td></tr>
+    <tr><td>Who calls it</td><td>Only the backend, inside <code>/route</code>. The frontend never calls Open-Meteo.</td></tr>
+    <tr><td>Refresh timing</td><td>Cached per date for <b>30 minutes</b>; after a failed fetch it retries after <b>60 seconds</b>; each HTTP call times out after <b>5 s</b>.</td></tr>
+    <tr><td>Time resolution</td><td>Radiation and precipitation are averages over the hour <i>ending</i> at each timestamp, so they are placed at the middle of that hour (−30 min) and linearly interpolated to the minute. Cloud cover is instantaneous and interpolated at the hour.</td></tr>
+    <tr><td>Fallback</td><td>If both APIs fail (or the date is out of their range, e.g. before 1940 or months ahead), weather = none: intensity = clear-sky sin θ, no rain; the panel says <i>"Weather unavailable, assuming clear sky."</i> Hidden <code>clear_sky=true</code> forces this for demos.</td></tr>
+    <tr><td>Shown to the user</td><td>"Cloud 0 % · direct sun 488 W/m² · rain 0 mm/h (live, Open-Meteo)" under the route.</td></tr>
+  </table>
+  <h2>11.1 What actually affects routing</h2>
+  <table>
+    <tr><th>Variable</th><th>Affects routing?</th><th>How</th></tr>
+    <tr><td>direct_radiation</td><td><span class="pill p-green">Yes</span></td><td>Sun intensity I(t) → sun-seconds → which Pareto options exist and which one the slider picks</td></tr>
+    <tr><td>precipitation</td><td><span class="pill p-orange">Only with Avoid rain</span></td><td>Rain intensity R(t) → rain-seconds, weighted by w<sub>r</sub> = 10</td></tr>
+    <tr><td>cloud_cover</td><td><span class="pill p-grey">No</span></td><td>Display only (clouds still matter, via lower direct radiation)</td></tr>
+  </table>
+  <p class="file">backend/weather.py</p>
+<pre><code>minutes = np.arange(24 * 60 + 1)
+at_hour = np.arange(24) * 60.0
+mid_hour = at_hour - 30.0                 # averages over the preceding hour
+direct=np.interp(minutes, mid_hour, values["direct_radiation"])</code></pre>
+  <div class="box warn"><span class="t">Honest caveat</span><p>One weather point (campus centre) is used for the whole campus. Open-Meteo uses a single UTC offset per day, so on the two DST-change days the weather after 02:00 can be an hour out (the sun position is still exact).</p></div>
+</section>
+
+<!-- ============================== 12 RAIN ============================== -->
+<section style="margin-top:18pt">
+  <h1><span class="num">12</span>Rain</h1>
+  <p class="lead">Rain routing <b>is</b> implemented, but it only changes the route when two things are both true: "Avoid rain" is on <i>and</i> the forecast has rain at that time.</p>
+  <div class="grid2">
+    <div class="box info" style="margin:0"><span class="t">Rain displayed</span>
+      <ul>
+        <li>Weather line always shows <code>rain … mm/h</code> (live weather).</li>
+        <li>Each route card shows a <b>Rain %</b> row only while it is raining at the departure time (<code>rain_mm_h &gt; 0</code>).</li>
+        <li>The switch caption says "No rain at this time" when the forecast is dry.</li>
+      </ul>
+    </div>
+    <div class="box key" style="margin:0"><span class="t">Rain affecting routing</span>
+      <ul>
+        <li>"Avoid rain" sends <code>w_rain=10</code> (else 0).</li>
+        <li>The Detour options then use cost <span class="m">c = τ + 10·W</span>.</li>
+        <li>The <b>Fastest</b> route is always pure time; it never avoids rain.</li>
+        <li>No rain in the forecast → W = 0 → no effect.</li>
+      </ul>
+    </div>
+  </div>
+  <h2>12.1 Rain maths</h2>
+  <div class="eq sm">R(t) = min(1, rain(t) / 4 mm/h) &nbsp;&nbsp;&nbsp;&nbsp; W<sub>e</sub> = ∫ R(t) · (1 − g(e)) dt ≈ τ<sub>e</sub> · <span class="frac"><span>R(t<sub>e</sub>) + R(t<sub>e</sub>+τ<sub>e</sub>)</span><span>2</span></span> · (1 − g(e))</div>
+  <ul>
+    <li><b>R</b>: rain intensity 0–1; moderate rain (4 mm/h) or heavier counts as 1.</li>
+    <li><b>g(e)</b>: the edge's <b>shelter</b> fraction: share of its 1.5 m sample points inside a building footprint, or 1 if OSM tags it as roofed (<code>covered=yes/arcade/colonnade</code>, <code>indoor=yes/corridor</code>, <code>highway=corridor</code>, <code>tunnel=building_passage/yes</code>). 364 directed edges are more than half sheltered.</li>
+    <li><b>w<sub>r</sub> = 10</b>: accept up to 10 s of extra walking per rain-second.</li>
+  </ul>
+  <div class="box key"><span class="t">Worked example</span><p>Raining 2 mm/h → R = 0.5. Open 30 s edge: W = 30 × 0.5 = 15 rain-s → cost 30 + 10 × 15 = <b>180</b>. Covered 45 s corridor (g = 1): W = 0 → cost <b>45</b>. The router takes the corridor.</p></div>
+  <div class="box warn"><span class="t">Limits</span><p>Rain is assumed to fall straight down (wind ignored). Indoor connections are assumed open. Rain % in the UI uses the rain at departure time to decide whether to show the row; routing integrates rain along the whole walk.</p></div>
+
+  <h1 style="margin-top:22pt"><span class="num">13</span>Smart / Comfort mode</h1>
+  <div class="box warn"><span class="t">Not in the code</span><p>There is <b>no</b> Smart or Comfort mode in the current code: no heat base, cloud factor, sun factor or comfort score, in either the frontend or the backend. If a judge asks, the honest answer is that "heat-aware" in Detour means <b>direct-sun exposure</b>, measured in sun-seconds from real shadows and live direct radiation; air temperature and humidity are not used. A comfort score combining temperature, humidity and sun would be a natural next step.</p></div>
+</section>
+
+<!-- ============================== 14 TESTING ============================== -->
+<section class="chapter">
+  <h1><span class="num">14</span>Testing and verification</h1>
+  <p class="lead">During development the code had 75 automated tests. They all passed on the final code on 18 Oct 2026, and the team then removed the test files to keep the final repository minimal.</p>
+  <table>
+    <tr><th>Check</th><th>Command</th><th>Status</th></tr>
+    <tr><td>Lint (ESLint, Next.js rules)</td><td><code>npm run lint</code></td><td><span class="pill p-green">0 problems</span> still in the repo</td></tr>
+    <tr><td>Production build (incl. TypeScript check)</td><td><code>npm run build</code></td><td><span class="pill p-green">success, <code>/</code> static</span> still in the repo</td></tr>
+    <tr><td>Frontend unit tests (<code>node:test</code>)</td><td>was <code>npm test</code></td><td>15 / 15 passed, then removed</td></tr>
+    <tr><td>Backend tests (pytest)</td><td>was <code>python -m pytest backend</code></td><td>60 / 60 passed, then removed</td></tr>
+  </table>
+  <div class="box warn"><span class="t">What this means</span><p>The final repository has no automated tests: only lint and the type-checked build run. After the tests were removed, the backend was smoke-tested by hand: <code>/health</code>, <code>/campus</code>, <code>/route</code> at 0, 50 and 100 % avoidance, an off-campus pin (422) and <code>/shadows</code>. The sections below describe what the removed tests checked, which is still useful when a judge asks how you know the maths is right.</p></div>
+  <h2>14.1 What the backend tests checked (removed)</h2>
+  <table>
+    <tr><th>File</th><th>Tests</th><th>What they prove</th></tr>
+    <tr><td><code>test_router.py</code></td><td>22</td><td>Fastest route = NetworkX shortest path ÷ 1.4 on 10 random campus pairs; A* = Dijkstra cost with fewer nodes; Pareto options strictly slower and shadier, within the 50 % cap, and covering every weighted-sum route; <code>pick()</code> thresholds; sampled shade ≈ exact geometry; rain shelter and OSM tags; overcast = nothing to avoid; DST days; caches bounded</td></tr>
+    <tr><td><code>test_api.py</code></td><td>16</td><td>Response shape, GeoJSON [lon, lat] order, day vs night, 0 % = fastest, 422 validation, date range, shadows at night empty, custom pins, off-campus pins rejected, weather source reported, CORS, <b>new:</b> shadow cache memory budget, shadow cache bound, pins snapped once</td></tr>
+    <tr><td><code>test_sun_shadow.py</code></td><td>15</td><td>Shadow direction (south → north, east → west), L = h/tan θ at 30°, 300 m cap, areas, concave U-shape keeps its gap, no shadow below 3°, tree shadow geometry</td></tr>
+    <tr><td><code>test_weather.py</code></td><td>6</td><td>Interpolation to the minute, hour averages at mid-hour, incomplete data rejected, rain saturation at 4 mm/h, offline fallback, caching</td></tr>
+    <tr><td><code>test_data.py</code></td><td>1</td><td>Toronto Massing snapshot: 737 buildings, CRS, max height 61.537 m, 2-D geometry</td></tr>
+  </table>
+  <h2>14.2 What the frontend tests checked (removed)</h2>
+  <p>Query building in backend units (avoidance as %, <code>w_rain=10</code>), pins sent only when set, clamping to 0–100, every input changes the route query but only date/time change the shadow query, time formatting, valid and zero-length routes parse, nine kinds of malformed responses are rejected, night-time empty shadows parse, error messages from <code>getJson</code> (backend detail, unreachable backend, aborts re-thrown), Toronto time in summer and winter, date range, campus ring parsing and point-in-polygon on an L-shaped polygon.</p>
+  <div class="nobreak">
+  <h2>14.3 Edge cases those tests covered</h2>
+  <div class="grid2">
+  <ul>
+    <li>Start = end (zero-length route)</li>
+    <li>Night (no sun) and overcast (no direct beam)</li>
+    <li>Pins off campus or far from paths</li>
+    <li>DST-change days (sun schedule)</li>
+  </ul>
+  <ul>
+    <li>Unreachable node → 404</li>
+    <li>Dates 0001 and 9999 → 422</li>
+    <li>Weather API offline → clear-sky fallback</li>
+    <li>OSM tag lists stored as text in GraphML</li>
+  </ul>
+  </div>
+  </div>
+</section>
+
+<!-- ============================== 15 AUDIT ============================== -->
+<section class="chapter">
+  <h1><span class="num">15</span>Overnight audit: what changed</h1>
+  <p class="lead">Rule: only clearly safe changes. No routing, sun, shadow, tree, rain or weather maths, constants, thresholds, UI layout or API contract was changed.</p>
+  <table>
+    <tr><th style="width:24%">Change</th><th>Problem found</th><th>Fix and why it is safe</th></tr>
+    <tr><td><b>Shadow response cache 192 → 64 slices</b><br><code>backend/api.py</code></td><td>Measured: a midday <code>/shadows</code> body is 1.45 MB, and the cache could hold 192 of them (≈ 266 MB). The backend's working set grew from 280 MB to 546 MB after 180 slices, above the 512 MB of the Render plan, so scrubbing time with shadows on could crash the server.</td><td>Same cache, smaller bound (a full day of daylight slices). A miss only recomputes the same body (~90 ms). Measured after: stays ≈ 370 MB. Test written first (failed: 192 × 1.45 MB &gt; 128 MB).</td></tr>
+    <tr><td><b>Pin → node cache</b><br><code>backend/api.py</code></td><td><code>nearest_node</code> rebuilt a spatial index of the whole graph on every <code>/route</code> call, about 6 ms of a 14 ms cached request, even though moving the slider resends the same pins.</td><td>Results remembered per exact (lat, lon), bounded at 256. Same function, same inputs → identical node. The off-campus and 150 m checks still run every time. Test: 3 slider moves → 2 lookups.</td></tr>
+    <tr><td><b>Retry recovers the campus outline</b><br><code>CampusMap.tsx</code></td><td>If the page loaded before the backend was up (normal with <code>npm run dev</code> or a sleeping server), the <code>/campus</code> fetch failed silently and was never retried: the outline stayed missing until a page reload. Retry also re-downloaded the 1.45 MB shadows even when only the route had failed.</td><td>The campus error is reported in the same status line, and Retry retries only the requests that failed. Verified in headless Edge: backend off → message shown; backend started → Retry → outline drawn; then pins, route and shadows worked, with one request each in the server log.</td></tr>
+    <tr><td><b>Cleanup</b></td><td>Files the running app never uses: the tests, the backend's standalone <code>/demo</code> page, an old <code>backend/cache/buildings.gpkg</code> the code no longer reads, a CSV copy of the building-heights GeoJSON, an unused logo image, <code>requirements-dev.txt</code> and the <code>npm test</code> script. <code>scripts/setup.mjs</code> accepted Python 3.10, but the pinned packages need 3.12.</td><td>All removed (the <code>/demo</code> endpoint too). <code>npm run setup</code> now requires Python 3.12 and installs <code>requirements.txt</code>; <code>npm run setup</code> and <code>npm run dev</code> are kept. Lint and build pass and the backend smoke test passes.</td></tr>
+    <tr><td>Docs</td><td>README and <code>render.yaml</code> said the backend "peaks around 260 MB". Both READMEs also had claims the code does not back up: the old "ShadeRoute" / "ContextRoute" names, Python 3.10 (the pinned packages need 3.12), options "at most 50 % slower", "about 6 options", an outdated example response and drawing snippet, an incomplete shelter-tag list, and 0.2 % sampling accuracy (the test checks 0.5 points).</td><td>Updated to the measured memory figures; both READMEs rewritten to match the code, with a real <code>/route</code> response. Text-only code fixes: the API docs title says "Detour" instead of "ContextRoute"; docstrings now mention tree shadows and 1.5 m sampling. No behaviour changed.</td></tr>
+  </table>
+  <h2>15.1 Checked and left alone</h2>
+  <ul>
+    <li>Debounce (150 ms), AbortController, stale handling and retry in <code>useRemote</code>: correct cleanup, no race; untouched.</li>
+    <li>No duplicate route or shadow requests (verified in the server log); shadows are not fetched while hidden.</li>
+    <li>No memoisation added: the remaining per-render work (a few Leaflet <code>setStyle</code> calls) is cheap, and the event-handler closures need fresh values.</li>
+    <li>Not changed (judged possible but risky): snapping the shadow request to the 15-minute slice on the client (would avoid re-downloading identical shadows when the time moves within a slice, but touches time arithmetic near midnight); the per-date weather cache has no size bound (≈ 35 KB per date, low risk).</li>
+  </ul>
+</section>
+
+<!-- ============================== 16 LIMITATIONS ============================== -->
+<section class="chapter">
+  <h1><span class="num">16</span>Limitations (honest list)</h1>
+  <div class="grid2">
+  <div>
+  <h3>Physical model</h3>
+  <ul>
+    <li>Flat ground; constant walking speed 1.4 m/s (no stairs, slopes or crowds). Terrain elevation was removed earlier.</li>
+    <li>"Heat" = direct-sun exposure only. No air temperature, humidity, wind, or heat from pavement.</li>
+    <li>Buildings are prisms at their <b>maximum</b> height (Toronto <code>MAX_HEIGHT</code>), which overestimates shadows of buildings with lower wings.</li>
+    <li>All trees are the same size (3 m crown, 2–9 m high); OSM may miss trees; leaves are assumed present all year.</li>
+    <li>Shadows only from buildings and trees; no awnings, bridges or overhangs (unless tagged covered).</li>
+    <li>No shadows below 3° elevation; length capped at 300 m.</li>
+    <li>Shade sampled every 1.5 m; shadows from the nearest 15-minute slice.</li>
+    <li>Indoor connections assumed open and fully shaded/sheltered at any hour.</li>
+  </ul>
+  </div>
+  <div>
+  <h3>Data and weather</h3>
+  <ul>
+    <li>One weather point for the campus; hourly data interpolated.</li>
+    <li>Weather only for dates Open-Meteo covers; otherwise clear-sky fallback (clearly labelled).</li>
+    <li>DST-change days: weather can be an hour out after 02:00.</li>
+    <li>Rain is vertical; wind-blown rain ignored.</li>
+  </ul>
+  <h3>Algorithm</h3>
+  <ul>
+    <li>Time-dependent search assumes leaving earlier never hurts (negligible error over minutes).</li>
+    <li>Options capped at 50 % extra cost; options must differ by ≥ 2 % of the fastest route's sun. A trip may have only 1–2 options, so the slider can do nothing over a range.</li>
+  </ul>
+  <h3>Product and engineering</h3>
+  <ul>
+    <li>Keele Campus only; pins must be inside the campus and within 150 m of a path.</li>
+    <li>Free Render plan sleeps after 15 min; first request then waits ~1 min.</li>
+    <li>Single backend process with in-memory caches (cleared wholesale when full).</li>
+    <li>No automated tests in the final repository (they were removed; lint and the type-checked build remain). No mobile GPS / live navigation.</li>
+  </ul>
+  </div>
+  </div>
+  <h2>16.1 Where documentation and code disagree</h2>
+  <p>Both READMEs, the old "ContextRoute" name in the API docs title and a few out-of-date code comments were corrected to match the code (§15). The only naming leftover is the API field <code>contextroute</code>, which holds the Detour route; it was kept so the frontend/backend contract does not change. What remains:</p>
+  <table>
+    <tr><th>Documentation says</th><th>The code actually</th></tr>
+    <tr><td>Project brief mentions frontend weather/comfort files and Smart/Comfort mode</td><td>They do not exist (§2.6, §13).</td></tr>
+  </table>
+</section>
+
+<!-- ============================== 17 Q&A ============================== -->
+<section class="chapter qa-list">
+  <h1><span class="num">17</span>Judge Q&amp;A</h1>
+  <p class="lead">Short, accurate answers. Say "I don't know, but here's how I'd find out" rather than guess.</p>
+
+  <div class="qcat">Frontend and React</div>
+  <div class="qa"><div class="q">Why Next.js and not plain React?</div><div class="a">It gives us a build system, TypeScript, optimised fonts and images, and a static prerendered page shell for free. The interactive map is a client component loaded only in the browser.</div></div>
+  <div class="qa"><div class="q">What is state in your app?</div><div class="a">Date, minutes, sun avoidance, avoid rain, the two pins, which pin is being placed, show shadows and the off-campus notice; plus each <code>useRemote</code>'s loaded value, error and retry counter. Everything else (request paths, stale flags, formatted numbers) is derived on each render.</div></div>
+  <div class="qa"><div class="q">Why is the map loaded with <code>dynamic(..., {ssr: false})</code>?</div><div class="a">Leaflet uses <code>window</code> at import time, which doesn't exist during server rendering. So the server sends a placeholder and the browser loads the map.</div></div>
+  <div class="qa"><div class="q">What does <code>useEffect</code> do in <code>useRemote</code>?</div><div class="a">It starts a 150 ms timer and then fetches. Its cleanup clears the timer and aborts the request, so every change of the request path cancels the previous one.</div></div>
+  <div class="qa"><div class="q">How do you stop an old response overwriting a new one?</div><div class="a">Each request has an AbortController that is aborted when the path changes, and the code checks <code>signal.aborted</code> before setting state. Results are also stored with the path they belong to.</div></div>
+  <div class="qa"><div class="q">What is a controlled input?</div><div class="a">An input whose value comes from React state and whose <code>onChange</code> updates that state, like our sliders, date picker and switches. React state is the single source of truth.</div></div>
+  <div class="qa"><div class="q">How do you validate the API response?</div><div class="a"><code>parseRoute</code> checks the type of every field the UI uses (finite numbers, geometry object, lat/lon pairs, known weather source) and throws a clear error otherwise. During development it was tested with nine malformed responses.</div></div>
+
+  <div class="qcat">Leaflet and mapping</div>
+  <div class="qa"><div class="q">What is the difference between Leaflet and OpenStreetMap?</div><div class="a">OSM is the data (and free tile images); Leaflet is the JavaScript library that shows an interactive map in the browser.</div></div>
+  <div class="qa"><div class="q">Why are coordinates sometimes [lat, lon] and sometimes [lon, lat]?</div><div class="a">Leaflet uses [lat, lon]; the GeoJSON standard uses [lon, lat] (x before y). We convert in <code>parseCampus</code> and <code>lineEnds</code>, and during development a backend test checked the GeoJSON order.</div></div>
+  <div class="qa"><div class="q">How do you make sure shadows don't cover the route?</div><div class="a">Shadows live in a custom Leaflet pane with z-index 350, below the overlay pane (400) where routes are drawn, and above the campus mask pane (340).</div></div>
+  <div class="qa"><div class="q">Why does the route have a white border?</div><div class="a">It is a "casing": a wider white line drawn underneath so the coloured route is readable over any map background.</div></div>
+  <div class="qa"><div class="q">Why do GeoJSON layers have a <code>key</code>?</div><div class="a">react-leaflet's GeoJSON ignores changes to its data, so we key it by the request path; a new response creates a new layer.</div></div>
+
+  <div class="qcat">Backend</div>
+  <div class="qa"><div class="q">Why a separate Python backend?</div><div class="a">The geometry, astronomy and graph libraries we need (Shapely, pvlib, OSMnx, NetworkX) are Python. The frontend only sends settings and draws results.</div></div>
+  <div class="qa"><div class="q">What does FastAPI validate for you?</div><div class="a">Types and ranges of every query parameter (e.g. <code>sun_avoidance</code> 0–100, <code>w_rain</code> 0–50, valid date/time), answering 422 automatically. We add checks for the date range, campus boundary and 150 m snapping distance.</div></div>
+  <div class="qa"><div class="q">Why is moving the sun-avoidance slider so fast?</div><div class="a">The whole set of route options is cached per trip, time and rain weight; the slider only re-runs <code>pick()</code> on the cached list. A cached request takes about 15 ms on the server.</div></div>
+  <div class="qa"><div class="q">How does the backend know a pin is on campus?</div><div class="a">It converts the pin to metres and tests it against the OSM campus polygon with Shapely, then snaps it to the nearest graph node and rejects it if that node is more than 150 m away. The frontend does the same polygon check first (ray casting), but the backend never trusts the client.</div></div>
+  <div class="qa"><div class="q">Does the app need the internet to compute routes?</div><div class="a">Only for weather and map tiles. The graph, buildings and trees are committed cache files loaded at start-up; without weather it falls back to a clear sky.</div></div>
+
+  <div class="qcat">Graphs and algorithms</div>
+  <div class="qa"><div class="q">What are the vertices and edges?</div><div class="a">Vertices are walkway intersections/endpoints (1,804); edges are walkway segments in each direction (5,172) with length and geometry, from OpenStreetMap.</div></div>
+  <div class="qa"><div class="q">Dijkstra or A*?</div><div class="a">A*, which is Dijkstra plus a lower-bound estimate of the remaining cost. Our estimate is straight-line distance ÷ 1.4 m/s × 0.99. It never overestimates, so A* returns the same optimal cost as Dijkstra (checked during development) while settling about half as many nodes (876 vs 1,703 on the demo trip).</div></div>
+  <div class="qa"><div class="q">Why is your heuristic admissible?</div><div class="a">No path is shorter than the straight line, and every edge costs at least its walking time because sun and rain terms are never negative.</div></div>
+  <div class="qa"><div class="q">Why not just add sun to the cost with a weight?</div><div class="a">A weighted sum can only find routes on the convex hull of the time/sun trade-off, so the route jumps and skips good compromises. We compute the full Pareto set and let the slider choose among all of them.</div></div>
+  <div class="qa"><div class="q">What is a Pareto-optimal route?</div><div class="a">One that no other route beats on both time and sun at once. Every option in our list is slower but shadier than the one before.</div></div>
+  <div class="qa"><div class="q">What does 50 % sun avoidance mean exactly?</div><div class="a">Take the quickest route that removes at least half of the sun that is avoidable on this trip (the difference between the fastest and the shadiest option).</div></div>
+  <div class="qa"><div class="q">What's the complexity?</div><div class="a">A* with a binary heap is O(E log V) in the worst case. The Pareto search can hold several labels per node, so it is bounded by limiting options to 50 % extra cost and requiring each to cut sun by 2 %; in practice the first request for a trip takes about 0.25 s and later ones are cached.</div></div>
+
+  <div class="qcat">Mathematics</div>
+  <div class="qa"><div class="q">How do you compute a shadow?</div><div class="a">L = h / tan(θ): a roof at height h casts its shadow L metres away, opposite the sun: offset (−L sin α, −L cos α). The building's shadow is its footprint swept along that offset (convex hull for convex buildings, per-wall parallelograms for concave ones).</div></div>
+  <div class="qa"><div class="q">What is a sun-second?</div><div class="a">One second spent in full-strength direct sun. Half-strength sun for two seconds is also one sun-second. Per edge: walking time × average intensity × unshaded fraction.</div></div>
+  <div class="qa"><div class="q">What does "Sun 27 %" mean on the card?</div><div class="a">The route gets 27 % of the direct sun it would get if nothing cast a shadow on it. The backend sends 27.x, already a percentage.</div></div>
+  <div class="qa"><div class="q">Why the trapezoid rule?</div><div class="a">Sun intensity changes over a walk, so exposure is an integral over time. The trapezoid rule averages entry and exit intensity per edge; edges take seconds, so it is very accurate.</div></div>
+  <div class="qa"><div class="q">Degrees or radians?</div><div class="a">The API and UI use degrees; the code converts with <code>math.radians</code> before sin/tan.</div></div>
+  <div class="qa"><div class="q">How accurate is the 1.5 m sampling?</div><div class="a">During development a test compared it with exact line/polygon overlap over the whole campus at three times of day; the length-weighted difference was under 0.5 percentage points.</div></div>
+
+  <div class="qcat">Weather and rain</div>
+  <div class="qa"><div class="q">Where does the weather come from and how often?</div><div class="a">Open-Meteo, hourly direct radiation, cloud cover and precipitation, fetched by the backend and cached 30 minutes per date (60 s after a failure).</div></div>
+  <div class="qa"><div class="q">Do clouds change the route?</div><div class="a">Yes, through direct radiation: under heavy cloud the direct beam is weak, so there is little sun to avoid. The cloud-cover percentage itself is only displayed.</div></div>
+  <div class="qa"><div class="q">Is rain routing real?</div><div class="a">Yes. With "Avoid rain" on, the Detour cost becomes time + 10 × rain-seconds, where rain-seconds count rain intensity on unsheltered walkway (buildings and OSM covered/indoor tags give shelter). If it isn't raining, it changes nothing.</div></div>
+  <div class="qa"><div class="q">What if the weather API is down?</div><div class="a">The backend falls back to a clear, dry sky (sun intensity = sin of elevation) and the panel says "Weather unavailable, assuming clear sky".</div></div>
+
+  <div class="qcat">Design, testing, limitations</div>
+  <div class="qa"><div class="q">Why show the fastest route too?</div><div class="a">So the user sees the trade-off: "+48 sec vs fastest" and "Sun 89 % → 71 %". Detour is green and drawn on top; Fastest is a red dotted reference.</div></div>
+  <div class="qa"><div class="q">How do you know the router is correct?</div><div class="a">During development, automated tests checked that the fastest route matches NetworkX's shortest path on random campus pairs, that A* matches Dijkstra, that the Pareto options are strictly slower and shadier and include every weighted-sum route, and that a toy graph with a known answer takes the shade detour. They all passed on the final code before the test files were removed.</div></div>
+  <div class="qa"><div class="q">Do you have automated tests?</div><div class="a">We wrote 75: 15 frontend (queries, validation, time zones, point-in-polygon) and 60 backend (router, API, shadows, weather, data), and all passed on the final code. We then removed the test files to keep the final repository minimal, so what remains is lint and the type-checked production build.</div></div>
+  <div class="qa"><div class="q">What's the biggest limitation?</div><div class="a">We model direct-sun exposure, not full thermal comfort: no air temperature, humidity or wind, uniform trees, maximum building heights, and one weather point for the campus.</div></div>
+  <div class="qa"><div class="q">What would you build next?</div><div class="a">A comfort score with temperature and humidity, real tree sizes, door opening hours for indoor routes, live GPS navigation, and other campuses (the pipeline only needs a boundary, the OSM walk network and building heights).</div></div>
+  <div class="qa"><div class="q">Did you find any bugs while preparing?</div><div class="a">Yes: the shadow cache could use more memory than our server has, and the campus outline didn't come back after a backend restart. Both fixed and verified, without changing any maths.</div></div>
+</section>
+
+<!-- ============================== 18 PITCHES ============================== -->
+<section class="chapter">
+  <h1><span class="num">18</span>Pitches</h1>
+  <h2>18.1 The 30-second explanation</h2>
+  <div class="script"><p>Detour is a walking map for York's Keele Campus that keeps you out of the sun. You drop a start and an end pin, pick how much sun you want to avoid, and Detour compares the fastest route with a shadier one, telling you exactly how much extra time it costs. Behind it, we compute real building and tree shadows from the sun's position, combine them with live weather, and search every trade-off between walking time and sun exposure across the campus walkway graph.</p></div>
+
+  <h2>18.2 The 90-second technical explanation</h2>
+  <div class="script"><p>The frontend is Next.js and React with a Leaflet map. React state holds the date, time, pins and sliders; every change becomes a URL, which a custom hook debounces for 150 ms, fetches with cancellation, and validates before drawing the GeoJSON route.</p>
+  <p>The backend is FastAPI in Python. The campus is a graph of 1,804 walkway intersections and 5,172 directed edges from OpenStreetMap, projected into metres. We get the sun's elevation and azimuth from pvlib and cast shadows from 737 City of Toronto buildings and 1,181 trees with L = h / tan θ, sweeping each footprint away from the sun.</p>
+  <p>We sample every walkway every 1.5 m to get its shaded fraction, then integrate sun exposure over the walk in sun-seconds, using live direct radiation from Open-Meteo so clouds count. Instead of a single weighted cost, we run a bicriteria A* search that finds the Pareto set of routes trading time for shade. The slider picks the quickest route that removes the chosen share of the avoidable sun, and optional rain avoidance keeps you under roofs. During development, automated tests confirmed that our A* matches Dijkstra and NetworkX.</p></div>
+
+  <h2>18.3 The 3-minute team presentation</h2>
+  <div class="script"><span class="time">0:00–0:45</span><div class="who">Frontend person: the problem and the app</div>
+  <p>On a hot day, the fastest walk across campus is often in full sun, while a route one minute longer is in shade. Detour shows you both. <i>[Demo: place two pins.]</i> Green is Detour, red dotted is the fastest route. The panel says how much time and sun each takes. When I move the sun-avoidance slider, the green route changes; when I move the time, everything updates, because the app is built in React and every input is state. Changes are debounced and old requests are cancelled, so it stays responsive. Turning on Show shadows draws the actual building and tree shadows for this moment.</p></div>
+  <div class="script"><span class="time">0:45–1:30</span><div class="who">Graph person: the network and the search</div>
+  <p>The campus is a graph: 1,804 intersections and 5,172 directed walkway edges from OpenStreetMap, in metres. The fastest route is A*: Dijkstra guided by a straight-line lower bound, which gives the same answer while exploring about half the nodes. But for shade, a single weighted cost only finds a few routes. So we search for the Pareto set: every route where you can't get less sun without walking longer. On our demo trip that's 9 routes. The slider means "avoid this share of the avoidable sun", and we take the quickest route that does it.</p></div>
+  <div class="script"><span class="time">1:30–2:15</span><div class="who">Math person: sun, shadows and exposure</div>
+  <p>We compute the sun's elevation θ and azimuth α for every minute of the day. A building of height h casts a shadow L = h / tan θ long, pointing away from the sun, so at noon in June a 20 m building casts about 7 m of shadow, and in December about 48 m. We sweep each footprint along that vector. Trees are crown disks from 2 to 9 m up. Each walkway is sampled every 1.5 m to get its shaded fraction, and exposure is an integral: sun-seconds equal walking time times sun intensity times the unshaded fraction, summed edge by edge at the time you actually reach it.</p></div>
+  <div class="script"><span class="time">2:15–3:00</span><div class="who">Backend person: weather, engineering, honesty</div>
+  <p>Sun intensity comes from live Open-Meteo direct radiation, because shade only blocks the direct beam; on a cloudy day there is little to avoid and Detour says so. With Avoid rain on, we also count rain-seconds on unsheltered walkways and stay under roofs. It's a FastAPI backend with caching, so slider changes answer in milliseconds, and during development we checked that A* matches Dijkstra. Limits: we model direct sun, not air temperature, and trees are a standard size. Next we'd add a comfort score and live navigation. Thank you.</p></div>
+</section>
+
+<!-- ============================== 19 TOP 10 ============================== -->
+<section class="chapter">
+  <h1><span class="num">19</span>If you only remember 10 things</h1>
+  <ol class="top10">
+    <li><b>Frontend draws, backend thinks.</b> Next.js/React/Leaflet in the browser; FastAPI/Python does all routing, sun, shadow and weather maths and returns JSON + GeoJSON.</li>
+    <li><b>The campus is a graph</b> G = (V, E): 1,804 nodes, 5,172 directed walkway edges from OpenStreetMap, in metres (UTM 17N). Walking speed 1.4 m/s, so τ = d / 1.4.</li>
+    <li><b>A* = Dijkstra + straight-line lower bound</b> (0.99 × distance ÷ 1.4). Same optimal answer, about half the nodes (876 vs 1,703).</li>
+    <li><b>The Detour route comes from a Pareto set</b>, not a single weight: every route that trades extra time for less sun (max 50 % extra cost, each step ≥ 2 % less sun). The slider picks the quickest that removes the chosen share of avoidable sun: target = S<sub>fast</sub> − p (S<sub>fast</sub> − S<sub>shadiest</sub>).</li>
+    <li><b>Shadow length L = h / tan θ</b>, direction (−L sin α, −L cos α), away from the sun. Nothing below 3°, capped at 300 m. Buildings are swept footprints; trees are 3 m crowns from 2 to 9 m.</li>
+    <li><b>Sun-seconds</b>: S<sub>e</sub> = τ × average intensity × (1 − shade fraction). Shade fraction comes from sample points every 1.5 m and the nearest 15-minute shadow.</li>
+    <li><b>Intensity = direct radiation / 1000 W/m²</b> from Open-Meteo (clear-sky fallback sin θ). Clouds matter through direct radiation; cloud % is display only. Weather is cached 30 min.</li>
+    <li><b>Units:</b> sun avoidance 0–100 in UI and URL, ÷ 100 in the backend; sun % is already a percentage; cloud cover is 0–1. Angles in degrees, converted to radians for trig. Times are Toronto local.</li>
+    <li><b>Coordinates:</b> Leaflet [lat, lon], GeoJSON [lon, lat], backend (x, y) metres.</li>
+    <li><b>Reliability:</b> 150 ms debounce, AbortController, stale routes dimmed, Retry, validated responses; backend caches make slider moves ~15 ms. Lint and build clean; 75 tests passed before the test files were removed.</li>
+  </ol>
+  <div class="box warn" style="margin-top:14pt"><span class="t">And one honest sentence</span><p>"Detour models direct-sun exposure from real shadows and live weather; it does not yet model air temperature, humidity or individual tree sizes."</p></div>
+</section>
+
+</body>
+</html>

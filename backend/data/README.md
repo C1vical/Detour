@@ -1,6 +1,6 @@
 # Toronto 3D Massing building heights
 
-`york_building_heights.geojson` and `york_building_heights.csv` are a
+`york_building_heights.geojson` is a
 checked-in snapshot of the City of Toronto's **2025 3D Massing WGS84**
 shapefile. It contains 737 footprints intersecting the Keele campus or its
 300 m shadow buffer.
