@@ -9,8 +9,8 @@ from shapely.geometry import box
 
 from backend.data import CACHE_DIR, CAMPUS_CENTER, METRIC_CRS, CampusData, load_campus
 from backend.exposure import ExposureModel, SunSchedule
-from backend.router import NoRouteError, route
-from backend.walking import travel_time_seconds
+from backend.router import NoRouteError, compare, route
+from backend.weather import DayWeather
 
 TZ = ZoneInfo("America/Toronto")
 # Near solar noon at York on 21 June (sun in the south, ~66 deg elevation).
@@ -18,11 +18,12 @@ NOON = datetime(2026, 6, 21, 13, 15, tzinfo=TZ)
 DAY = datetime(2026, 6, 21, tzinfo=TZ)
 
 
-def _toy_campus() -> CampusData:
+def _toy_campus(footprint=box(20, -30, 80, -20), height=40.0, detour_tags=None) -> CampusData:
     """Direct open path A-B (100 m) vs detour A-C1-C2-B (120 m) passing under a tall building's shadow.
 
     Sun is due south, so a 40 m building at y in [-30,-20] shades y in about [-20,-2],
     which covers the middle 60 m of the detour (y = -10) but not the direct path (y = 0).
+    `detour_tags` are OSM tags put on the middle detour edge C1-C2.
     """
     g = nx.MultiDiGraph()
     pts = {"A": (0, 0), "B": (100, 0), "C1": (0, -10), "C2": (100, -10), "D": (300, 300)}  # D is unreachable
@@ -30,15 +31,14 @@ def _toy_campus() -> CampusData:
     for n, (x, y) in pts.items():
         g.add_node(ids[n], x=float(x), y=float(y))
 
-    def link(a, b):
+    def link(a, b, **tags):
         (x1, y1), (x2, y2) = pts[a], pts[b]
         length = ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
-        g.add_edge(ids[a], ids[b], length=length)
-        g.add_edge(ids[b], ids[a], length=length)
+        g.add_edge(ids[a], ids[b], length=length, **tags)
+        g.add_edge(ids[b], ids[a], length=length, **tags)
 
-    link("A", "B"); link("A", "C1"); link("C1", "C2"); link("C2", "B")
-    buildings = gpd.GeoDataFrame({"height_m": [40.0]},
-                                 geometry=[box(20, -30, 80, -20)], crs=METRIC_CRS)
+    link("A", "B"); link("A", "C1"); link("C1", "C2", **(detour_tags or {})); link("C2", "B")
+    buildings = gpd.GeoDataFrame({"height_m": [height]}, geometry=[footprint], crs=METRIC_CRS)
     trees = gpd.GeoDataFrame({"geometry": []}, geometry="geometry", crs=METRIC_CRS)
     return CampusData(g, buildings, trees, box(-50, -50, 150, 50)), ids
 
@@ -54,7 +54,7 @@ def test_fastest_route_goes_direct(toy):
     model, ids = toy
     r = route(model, ids["A"], ids["B"], NOON, w_sun=0.0)
     assert r.nodes == [ids["A"], ids["B"]]
-    assert r.seconds == pytest.approx(travel_time_seconds(100.0, 0.0))
+    assert r.seconds == pytest.approx(100 / 1.4)
 
 
 def test_sun_weight_prefers_shaded_detour(toy):
@@ -108,3 +108,58 @@ def test_astar_matches_dijkstra_on_campus():
         assert s.cost == pytest.approx(d.cost, rel=1e-9)
         assert s.expanded <= d.expanded
         tested += 1
+
+
+# --- rain and shelter ---------------------------------------------------------
+
+def _weather(direct=0.0, cloud=100.0, rain=0.0) -> DayWeather:
+    return DayWeather.from_hourly({"direct_radiation": [direct] * 24, "cloud_cover": [cloud] * 24,
+                                   "precipitation": [rain] * 24})
+
+
+def _rainy_toy(rain_mm_h=4.0, **kw):
+    """Toy campus where a low building roofs the middle 60 m of the detour's C1-C2 edge."""
+    data, ids = _toy_campus(**kw)
+    return ExposureModel(data, SunSchedule(*CAMPUS_CENTER, DAY, _weather(rain=rain_mm_h))), ids
+
+
+def _edge(model, ids, a, b):
+    return model.edge_index[(ids[a], ids[b], 0)]
+
+
+def test_shelter_fraction_counts_the_edge_inside_a_building():
+    model, ids = _rainy_toy(footprint=box(20, -15, 80, -5), height=3.0)
+    assert model.shelter[_edge(model, ids, "C1", "C2")] == pytest.approx(0.6, abs=0.03)
+    assert model.shelter[_edge(model, ids, "A", "B")] == 0.0
+
+
+def test_roofed_osm_tags_count_as_fully_sheltered():
+    model, ids = _rainy_toy(detour_tags={"tunnel": "building_passage"})
+    assert model.shelter[_edge(model, ids, "C1", "C2")] == 1.0
+    model, ids = _rainy_toy(detour_tags={"covered": "['no', 'yes']"})  # merged edge, GraphML list
+    assert model.shelter[_edge(model, ids, "C1", "C2")] == 1.0
+
+
+def test_rain_weight_prefers_sheltered_detour_while_raining():
+    model, ids = _rainy_toy(footprint=box(20, -15, 80, -5), height=3.0)
+    fast, ctx = compare(model, ids["A"], ids["B"], NOON, w_sun=0.0, w_rain=5.0)
+    assert fast.nodes == [ids["A"], ids["B"]]
+    assert ctx.nodes == [ids["A"], ids["C1"], ids["C2"], ids["B"]]
+    assert ctx.rain_percent < fast.rain_percent == pytest.approx(100.0)
+
+
+def test_rain_weight_does_nothing_when_dry():
+    model, ids = _rainy_toy(rain_mm_h=0.0, footprint=box(20, -15, 80, -5), height=3.0)
+    r = route(model, ids["A"], ids["B"], NOON, w_rain=5.0)
+    assert r.nodes == [ids["A"], ids["B"]]
+    assert r.rain_seconds == 0.0 and r.rain_percent == 0.0
+
+
+def test_live_direct_radiation_drives_sun_exposure():
+    # Overcast (no direct beam) means nothing to avoid, so the sun weight keeps the direct path.
+    data, ids = _toy_campus()
+    overcast = ExposureModel(data, SunSchedule(*CAMPUS_CENTER, DAY, _weather(direct=0.0)))
+    r = route(overcast, ids["A"], ids["B"], NOON, w_sun=5.0)
+    assert r.sun_seconds == 0.0 and r.nodes == [ids["A"], ids["B"]]
+    sunny = SunSchedule(*CAMPUS_CENTER, DAY, _weather(direct=800.0))
+    assert sunny.intensity(NOON) == pytest.approx(0.8)

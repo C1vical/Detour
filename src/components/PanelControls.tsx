@@ -76,12 +76,14 @@ function RouteSummary({
   kind,
   stats,
   delta,
+  showRain,
 }: {
   kind: "ctx" | "fast";
   stats: RouteStats;
   delta?: string;
+  showRain: boolean;
 }) {
-  const sun = Math.min(100, Math.max(0, Math.round(stats.sun_percent)));
+  const pct = (p: number) => Math.min(100, Math.max(0, Math.round(p)));
   return (
     <div className={`route-summary route-summary-${kind}`}>
       <p className="route-summary-name">
@@ -97,8 +99,14 @@ function RouteSummary({
         </div>
         <div>
           <dt>Sun</dt>
-          <dd>{sun}%</dd>
+          <dd>{pct(stats.sun_percent)}%</dd>
         </div>
+        {showRain && (
+          <div>
+            <dt>Rain</dt>
+            <dd>{pct(stats.rain_percent)}%</dd>
+          </div>
+        )}
       </dl>
     </div>
   );
@@ -110,10 +118,12 @@ export function RoutePair({
   detour,
   fastest,
   extraSeconds,
+  showRain,
 }: {
   detour: RouteStats;
   fastest: RouteStats;
   extraSeconds: number;
+  showRain: boolean;
 }) {
   const extra = Math.round(extraSeconds);
   const delta =
@@ -124,8 +134,8 @@ export function RoutePair({
         : "No extra time";
   return (
     <div className="route-pair">
-      <RouteSummary kind="ctx" stats={detour} delta={delta} />
-      <RouteSummary kind="fast" stats={fastest} />
+      <RouteSummary kind="ctx" stats={detour} delta={delta} showRain={showRain} />
+      <RouteSummary kind="fast" stats={fastest} showRain={showRain} />
     </div>
   );
 }

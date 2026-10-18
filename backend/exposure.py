@@ -1,15 +1,21 @@
-"""Sun exposure along walkway edges.
+"""Sun and rain exposure along walkway edges.
 
 Pipeline for one edge e entered at time t_e (walking speed v, length d):
 
     tau_e = d / v                                    traversal time (s)
     f(e, t) = length(e ∩ shadow(t)) / length(e)      fraction of the edge in shade
-    I(t)    = max(0, sin(theta(t))) * cloud factor   relative sun intensity
+    I(t)    = direct_radiation(t) / 1000 W/m²        relative direct-sun intensity
+              (clear-sky fallback: max(0, sin(theta(t))))
     S_e     = ∫ from t_e to t_e+tau_e of I(t) (1 - f) dt        (sun-seconds)
 
-The integral is evaluated with the trapezoid rule over the traversal. Shadows
-move slowly, so the shade fraction is computed on a coarse time grid
-(`slice_seconds`, default 15 min) and the nearest slice is used.
+    g(e)    = share of e under a roof (in a building or a covered/indoor way)
+    R(t)    = min(1, rain(t) / 4 mm/h)               relative rain intensity
+    W_e     = ∫ from t_e to t_e+tau_e of R(t) (1 - g) dt        (rain-seconds)
+
+Shade only blocks the direct beam, which is why I(t) is the forecast direct
+radiation rather than total sunlight. The integrals use the trapezoid rule over
+the traversal. Shadows move slowly, so the shade fraction is computed on a
+coarse time grid (`slice_seconds`, default 15 min) and the nearest slice is used.
 """
 from __future__ import annotations
 
@@ -26,15 +32,14 @@ from shapely.geometry import LineString
 from .data import CampusData, building_list, tree_list
 from .shadow import ShadowCaster
 from .sun import SunPosition, sun_positions
-from .walking import MAX_TOBLER_SPEED_MPS, travel_time_seconds
+from .weather import DayWeather, rain_intensity
 
 WALK_SPEED_MPS = 1.4
 SAMPLE_SPACING_M = 1.5  # spacing of shade sample points along an edge
-
-
-def cloud_factor(cloud_cover: float) -> float:
-    """Kasten-Czeplak: fraction of clear-sky irradiance reaching the ground, 1 - 0.75 c^3.4."""
-    return 1.0 - 0.75 * cloud_cover ** 3.4
+CLEAR_SKY_DIRECT_WM2 = 1000.0  # direct radiation that counts as intensity 1
+# OSM tag values on a walk edge that mean the walkway is roofed.
+SHELTER_TAGS = {"tunnel": {"building_passage", "yes"}, "covered": {"yes", "arcade", "colonnade"},
+                "indoor": {"yes", "corridor"}, "highway": {"corridor"}}
 
 
 @dataclass(frozen=True)
@@ -43,30 +48,44 @@ class EdgeRef:
     v: int
     key: int
     length: float  # metres
-    grade: float
-    speed_mps: float
-    travel_time_s: float
 
 
 class SunSchedule:
-    """Sun position and intensity over a day, precomputed at 1-minute resolution."""
+    """Sun position, sun intensity and rain over a day, at 1-minute resolution.
 
-    def __init__(self, lat: float, lon: float, day: datetime, cloud_cover: float = 0.0):
+    With `weather`, intensity is the forecast direct radiation and rain is the
+    forecast precipitation. Without it (no data, or a forced clear sky), the
+    sky is clear and dry: intensity max(0, sin(theta)), no rain.
+    """
+
+    def __init__(self, lat: float, lon: float, day: datetime, weather: DayWeather | None = None):
         midnight = day.replace(hour=0, minute=0, second=0, microsecond=0)
         self.t0 = midnight
         times = pd.date_range(midnight, periods=24 * 60 + 1, freq="min")
         pos = sun_positions(lat, lon, times)
         self.elevation = pos["elevation"].to_numpy()
         self.azimuth = pos["azimuth"].to_numpy()
-        self.cloud = cloud_factor(cloud_cover)
-        self._intensity = np.maximum(0.0, np.sin(np.radians(self.elevation))) * self.cloud
+        self.weather = weather
+        if weather is None:
+            self._intensity = np.maximum(0.0, np.sin(np.radians(self.elevation)))
+            self._rain = np.zeros(len(times))
+        else:
+            self._intensity = weather.direct / CLEAR_SKY_DIRECT_WM2
+            self._rain = rain_intensity(weather.rain)
 
     def _minutes(self, when: datetime) -> float:
         return (when - self.t0).total_seconds() / 60.0
 
+    def _interp(self, values: np.ndarray, when: datetime) -> float:
+        return float(np.interp(self._minutes(when), np.arange(len(values)), values))
+
     def intensity(self, when: datetime) -> float:
-        """Relative intensity at `when`, linearly interpolated between minutes."""
-        return float(np.interp(self._minutes(when), np.arange(len(self._intensity)), self._intensity))
+        """Relative direct-sun intensity at `when`, linearly interpolated between minutes."""
+        return self._interp(self._intensity, when)
+
+    def rain(self, when: datetime) -> float:
+        """Relative rain intensity R at `when` (0 dry .. 1 moderate rain or heavier)."""
+        return self._interp(self._rain, when)
 
     def position(self, when: datetime) -> SunPosition:
         i = int(round(self._minutes(when)))
@@ -82,34 +101,27 @@ class ExposureModel:
         self.graph = data.graph
         self.sun = sun
         self.slice_seconds = slice_seconds
-        # The heuristic must use an upper bound on Tobler's speed so A* stays
-        # admissible for every grade-adjusted edge.
-        self.speed = MAX_TOBLER_SPEED_MPS
+        self.speed = speed
         self._caster = ShadowCaster(building_list(data), tree_list(data))
         self._shade_cache: dict[int, np.ndarray] = {}
         self._shadow_cache: dict[int, shapely.Geometry] = {}
 
         self.edges: list[EdgeRef] = []
         self.edge_index: dict[tuple[int, int, int], int] = {}
-        lines = []
+        lines, edge_attrs = [], []
         for u, v, k, a in data.graph.edges(keys=True, data=True):
             geom = a.get("geometry")
             if geom is None:
                 nu, nv = data.graph.nodes[u], data.graph.nodes[v]
                 geom = LineString([(nu["x"], nu["y"]), (nv["x"], nv["y"])])
             self.edge_index[(u, v, k)] = len(self.edges)
-            length = float(a["length"])
-            grade = float(a.get("grade", 0.0))
-            speed_mps = float(a.get("speed_mps", 0.0))
-            travel_time_s = float(a.get("travel_time_s", 0.0))
-            if speed_mps <= 0.0 or travel_time_s <= 0.0:
-                travel_time_s = travel_time_seconds(length, grade)
-                speed_mps = length / travel_time_s if travel_time_s else 0.0
-            self.edges.append(EdgeRef(u, v, k, length, grade, speed_mps, travel_time_s))
+            self.edges.append(EdgeRef(u, v, k, float(a["length"])))
             lines.append(geom)
+            edge_attrs.append(a)
         self._lines = np.array(lines, dtype=object)
         self._geom_len = shapely.length(self._lines)
         self._build_samples()
+        self.shelter = self._shelter_fractions(data, edge_attrs)
 
     def _build_samples(self) -> None:
         """Sample points along every edge: shade fraction = share of sample points in shadow."""
@@ -120,8 +132,21 @@ class ExposureModel:
         self._samples = shapely.line_interpolate_point(self._lines[self._sample_edge], frac, normalized=True)
         self._sample_counts = counts
 
+    def _shelter_fractions(self, data: CampusData, edge_attrs: list[dict]) -> np.ndarray:
+        """g(e): share of each edge's sample points inside a building, or 1 for roofed walkways."""
+        inside = np.zeros(len(self._samples))
+        if len(data.buildings):
+            footprints = np.asarray(data.buildings.geometry, dtype=object)
+            hit = shapely.STRtree(footprints).query(self._samples, predicate="intersects")[0]
+            inside[np.unique(hit)] = 1.0
+        frac = np.bincount(self._sample_edge, weights=inside, minlength=len(self.edges)) / self._sample_counts
+        for i, a in enumerate(edge_attrs):
+            if any(_has_tag(a.get(tag), values) for tag, values in SHELTER_TAGS.items()):
+                frac[i] = 1.0
+        return frac
+
     def with_sun(self, sun: SunSchedule) -> "ExposureModel":
-        """Cheap copy using another SunSchedule (e.g. other date/cloud cover).
+        """Cheap copy using another SunSchedule (e.g. another date or weather).
 
         Shares the edge tables and the shade cache: the shadow at a given instant
         depends only on that instant, so cached slices stay valid across schedules.
@@ -178,20 +203,37 @@ class ExposureModel:
     # --- exposure ----------------------------------------------------------
 
     def traversal_seconds(self, edge: int) -> float:
-        ref = self.edges[edge]
-        return ref.travel_time_s
+        return self.edges[edge].length / self.speed
+
+    def _trapezoid(self, edge: int, enter: datetime, rate) -> float:
+        """Trapezoid integral of rate(t) over the traversal of `edge` starting at `enter`."""
+        tau = self.traversal_seconds(edge)
+        return tau * 0.5 * (rate(enter) + rate(enter + timedelta(seconds=tau)))
 
     def sun_seconds(self, edge: int, enter: datetime) -> float:
-        """S_e: trapezoid integral of I(t)(1-f) over the traversal starting at `enter`."""
-        tau = self.traversal_seconds(edge)
-        unshaded = 1.0 - self.shade_fractions(enter)[edge]
-        i0 = self.sun.intensity(enter)
-        i1 = self.sun.intensity(enter + timedelta(seconds=tau))
-        return tau * unshaded * 0.5 * (i0 + i1)
+        """S_e: integral of I(t)(1-f) over the traversal starting at `enter`."""
+        return (1.0 - self.shade_fractions(enter)[edge]) * self.full_sun_seconds(edge, enter)
 
     def full_sun_seconds(self, edge: int, enter: datetime) -> float:
         """Same integral with no shade (f=0): the sun the edge would give in the open."""
-        tau = self.traversal_seconds(edge)
-        i0 = self.sun.intensity(enter)
-        i1 = self.sun.intensity(enter + timedelta(seconds=tau))
-        return tau * 0.5 * (i0 + i1)
+        return self._trapezoid(edge, enter, self.sun.intensity)
+
+    def rain_seconds(self, edge: int, enter: datetime) -> float:
+        """W_e: integral of R(t)(1-g) over the traversal starting at `enter`."""
+        return (1.0 - self.shelter[edge]) * self.full_rain_seconds(edge, enter)
+
+    def full_rain_seconds(self, edge: int, enter: datetime) -> float:
+        """Same integral with no shelter (g=0): the rain the edge would give in the open."""
+        return self._trapezoid(edge, enter, self.sun.rain)
+
+
+def _has_tag(value, accepted: set[str]) -> bool:
+    """OSM tag check. Merged edges hold several values, which GraphML stores as "['a', 'b']"."""
+    if value is None:
+        return False
+    if isinstance(value, list):
+        return any(str(v) in accepted for v in value)
+    text = str(value)
+    if text.startswith("["):
+        return any(f"'{v}'" in text for v in accepted)
+    return text in accepted

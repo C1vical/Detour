@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -9,7 +11,8 @@ pytestmark = pytest.mark.skipif(not (CACHE_DIR / "walk.graphml").exists(), reaso
 @pytest.fixture(scope="module")
 def client():
     from backend.api import app
-    with TestClient(app) as c:  # runs lifespan (loads campus)
+    # No network in tests: the weather fetch "fails", so routes use the clear-sky fallback.
+    with patch("backend.api.day_weather", return_value=None), TestClient(app) as c:  # runs lifespan
         yield c
 
 
@@ -66,3 +69,11 @@ def test_endpoint_validation(client):
     assert client.get("/route", params={"from_lat": 43.77}).status_code == 422  # lon missing
     far = {"to_lat": 44.5, "to_lon": -79.0}
     assert client.get("/route", params=far).status_code == 422  # off the network
+
+
+def test_weather_source_is_reported(client):
+    j = client.get("/route", params={"date": "2026-06-21", "time": "14:00"}).json()
+    assert j["weather"]["source"] == "unavailable" and j["weather"]["rain_mm_h"] is None
+    j = client.get("/route", params={"date": "2026-06-21", "time": "14:00", "clear_sky": True}).json()
+    assert j["weather"]["source"] == "clear_sky"
+    assert j["fastest"]["rain_percent"] == 0

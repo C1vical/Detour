@@ -21,6 +21,7 @@ import {
   getJson,
   KEELE_CAMPUS_CENTER,
   type LatLon,
+  type Weather,
   MIN_ZOOM,
   minutesToTime,
   nowInToronto,
@@ -56,6 +57,16 @@ function lineEnds(g: unknown): { first: LatLon; last: LatLon } | null {
 const SHADOW_COLOR = "#2f3b4c";
 const DETOUR_COLOR = "#138a3e";
 const FAST_COLOR = "#e0161b";
+
+const isRaining = (w: Weather) => (w.rain_mm_h ?? 0) > 0;
+
+// One line for the panel, so the weather the route was computed with is visible.
+function describeWeather(w: Weather) {
+  if (w.source === "clear_sky") return "Clear sky (simulated).";
+  if (w.source === "unavailable") return "Weather unavailable, assuming clear sky.";
+  const cloud = Math.round((w.cloud_cover ?? 0) * 100);
+  return `Cloud ${cloud}% · direct sun ${w.direct_wm2} W/m² · rain ${w.rain_mm_h} mm/h (live, Open-Meteo)`;
+}
 
 function ClickToPlace({ onPick }: { onPick: (p: LatLon) => void }) {
   useMapEvents({ click: (e) => onPick([e.latlng.lat, e.latlng.lng]) });
@@ -107,7 +118,8 @@ export default function CampusMap() {
   const [initialNow] = useState(() => nowInToronto());
   const [date, setDate] = useState(initialNow.date);
   const [minutes, setMinutes] = useState(initialNow.minutes);
-  const [avoidance, setAvoidance] = useState(DEFAULT_AVOIDANCE);
+  const [sunAvoidance, setSunAvoidance] = useState(DEFAULT_AVOIDANCE);
+  const [avoidRain, setAvoidRain] = useState(false);
   const [start, setStart] = useState<LatLon | null>(null);
   const [end, setEnd] = useState<LatLon | null>(null);
   const [placing, setPlacing] = useState<PinKind>("start");
@@ -115,7 +127,7 @@ export default function CampusMap() {
 
   // No route until both pins are placed.
   const route = useRemote(
-    start && end ? `/route?${routeQuery({ date, minutes, avoidance, start, end })}` : null,
+    start && end ? `/route?${routeQuery({ date, minutes, sunAvoidance, avoidRain, start, end })}` : null,
     parseRoute,
   );
   // Shadows depend only on date and time, and are only fetched while shown.
@@ -313,7 +325,9 @@ export default function CampusMap() {
                 detour={r.contextroute}
                 fastest={r.fastest}
                 extraSeconds={r.extra_seconds}
+                showRain={isRaining(r.weather)}
               />
+              <p className="route-hint">{describeWeather(r.weather)}</p>
             </div>
           ) : start && end ? (
             !failed && <div className="route-skeleton" aria-hidden="true" />
@@ -410,11 +424,17 @@ export default function CampusMap() {
               min={0}
               max={100}
               step={5}
-              value={avoidance}
-              display={`${avoidance}%`}
-              onChange={setAvoidance}
+              value={sunAvoidance}
+              display={`${sunAvoidance}%`}
+              onChange={setSunAvoidance}
             />
           </div>
+          <Switch checked={avoidRain} onChange={setAvoidRain}>
+            Avoid rain
+            <small>
+              {r && !isRaining(r.weather) ? "No rain at this time" : "Stay under roofs while it rains"}
+            </small>
+          </Switch>
           <Switch checked={showShadows} onChange={setShowShadows}>
             Show shadows
             <small>Buildings and trees</small>

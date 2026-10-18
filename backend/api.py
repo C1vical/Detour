@@ -32,6 +32,7 @@ from .data import CAMPUS_CENTER, METRIC_CRS, CampusData, load_campus
 from .exposure import ExposureModel, SunSchedule
 from .router import NoRouteError, RouteResult, compare
 from .trip import DEST, ORIGIN, nearest_node
+from .weather import day_weather
 
 TZ = ZoneInfo("America/Toronto")
 STATIC_DIR = Path(__file__).parent / "static"
@@ -52,6 +53,7 @@ class RouteOut(BaseModel):
     distance_m: float
     sun_percent: float
     sun_seconds: float
+    rain_percent: float
     geometry: dict  # GeoJSON LineString, [lon, lat]
 
 
@@ -61,10 +63,18 @@ class SunOut(BaseModel):
     is_daylight: bool
 
 
+class WeatherOut(BaseModel):
+    source: str                 # "live" (Open-Meteo), "clear_sky" (forced), "unavailable" (fetch failed)
+    direct_wm2: float | None    # direct sunlight on the ground at `when`
+    cloud_cover: float | None   # 0-1
+    rain_mm_h: float | None
+
+
 class RouteResponse(BaseModel):
     when: str
     w_sun: float
-    cloud_cover: float
+    w_rain: float
+    weather: WeatherOut
     sun: SunOut
     origin: tuple[float, float]       # (lat, lon)
     destination: tuple[float, float]  # (lat, lon)
@@ -72,6 +82,7 @@ class RouteResponse(BaseModel):
     contextroute: RouteOut
     extra_seconds: float
     sun_percent_change: float  # percentage points: contextroute - fastest
+    rain_percent_change: float  # percentage points: contextroute - fastest
 
 
 # --- state ------------------------------------------------------------------
@@ -81,7 +92,7 @@ class State:
     base: ExposureModel
     origin: int
     dest: int
-    models: dict[tuple[Date, float], ExposureModel]
+    models: dict[tuple[Date, bool], ExposureModel]
 
 
 state = State()
@@ -116,15 +127,27 @@ def _parse_when(day: Date | None, clock: Time | None) -> datetime:
     return datetime.combine(day, clock, tzinfo=TZ)
 
 
-def _model_for(when: datetime, cloud_cover: float) -> ExposureModel:
-    key = (when.date(), round(cloud_cover, 2))
+def _model_for(when: datetime, clear_sky: bool) -> ExposureModel:
+    """Model for that date: live weather (re-fetched every 30 min), or a clear, dry sky."""
+    weather = None if clear_sky else day_weather(*CAMPUS_CENTER, when.date())
+    key = (when.date(), clear_sky)
     model = state.models.get(key)
-    if model is None:
+    if model is None or model.sun.weather is not weather:
         if len(state.models) > 32:
             state.models.clear()
-        model = state.base.with_sun(SunSchedule(*CAMPUS_CENTER, when, cloud_cover))
+        model = state.base.with_sun(SunSchedule(*CAMPUS_CENTER, when, weather))
         state.models[key] = model
     return model
+
+
+def _weather_out(model: ExposureModel, when: datetime, clear_sky: bool) -> WeatherOut:
+    weather = model.sun.weather
+    if weather is None:
+        return WeatherOut(source="clear_sky" if clear_sky else "unavailable",
+                          direct_wm2=None, cloud_cover=None, rain_mm_h=None)
+    direct, cloud, rain = weather.at(when)
+    return WeatherOut(source="live", direct_wm2=round(direct), cloud_cover=round(cloud, 2),
+                      rain_mm_h=round(rain, 1))
 
 
 def _snap(name: str, latlon: tuple[float, float]) -> int:
@@ -151,6 +174,7 @@ def _route_out(model: ExposureModel, r: RouteResult) -> RouteOut:
         distance_m=round(r.distance_m, 1),
         sun_percent=round(r.sun_percent, 1),
         sun_seconds=round(r.sun_seconds, 1),
+        rain_percent=round(r.rain_percent, 1),
         geometry=_route_geometry(model, r),
     )
 
@@ -167,7 +191,8 @@ def get_route(
     date: Date | None = Query(None, description="YYYY-MM-DD (default: today)"),
     time: Time | None = Query(None, description="HH:MM, 24 h (default: now)"),
     w_sun: float = Query(3.0, ge=0, le=50, description="Sun-avoidance weight; 0 = fastest route"),
-    cloud_cover: float = Query(0.0, ge=0, le=1, description="0 clear sky .. 1 overcast"),
+    w_rain: float = Query(0.0, ge=0, le=50, description="Rain-avoidance weight; only matters while it rains"),
+    clear_sky: bool = Query(False, description="Ignore live weather: clear, dry sky (for demos)"),
     from_lat: float | None = Query(None, ge=-90, le=90, description="Start latitude (default: demo start)"),
     from_lon: float | None = Query(None, ge=-180, le=180, description="Start longitude"),
     to_lat: float | None = Query(None, ge=-90, le=90, description="End latitude (default: demo end)"),
@@ -180,16 +205,17 @@ def get_route(
     origin_node = state.origin if from_lat is None else _snap("start", origin)
     dest_node = state.dest if to_lat is None else _snap("end", dest)
     when = _parse_when(date, time)
-    model = _model_for(when, cloud_cover)
+    model = _model_for(when, clear_sky)
     try:
-        fast, ctx = compare(model, origin_node, dest_node, when, w_sun)
+        fast, ctx = compare(model, origin_node, dest_node, when, w_sun, w_rain)
     except NoRouteError as exc:
         raise HTTPException(404, str(exc))
     sun = model.sun.position(when)
     return RouteResponse(
         when=when.isoformat(),
         w_sun=w_sun,
-        cloud_cover=cloud_cover,
+        w_rain=w_rain,
+        weather=_weather_out(model, when, clear_sky),
         sun=SunOut(elevation_deg=round(sun.elevation, 2), azimuth_deg=round(sun.azimuth, 2),
                    is_daylight=sun.is_up),
         origin=origin,
@@ -198,6 +224,7 @@ def get_route(
         contextroute=_route_out(model, ctx),
         extra_seconds=round(ctx.seconds - fast.seconds, 1),
         sun_percent_change=round(ctx.sun_percent - fast.sun_percent, 1),
+        rain_percent_change=round(ctx.rain_percent - fast.rain_percent, 1),
     )
 
 
@@ -208,7 +235,7 @@ def get_shadows(
 ) -> dict:
     """GeoJSON FeatureCollection of the combined building shadow (empty at night)."""
     when = _parse_when(date, time)
-    model = _model_for(when, 0.0)
+    model = _model_for(when, clear_sky=True)  # shadow geometry doesn't depend on weather
     shadow = model.shadow_at(when).simplify(0.5)
     features = []
     if not shadow.is_empty:

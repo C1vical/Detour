@@ -120,6 +120,8 @@ Open <http://localhost:3000>. The app calls the backend at
 - Click the map to place the start and end pins, or drag them; the route appears once both are placed, and **Reset** removes the pins. The map is limited to the campus area.
 - The date and time start at the current Toronto time; **Now** jumps back to it. Changing either refetches the route and shadows.
 - Sun avoidance is 0-100 %: 0 % is the fastest route, higher values trade walking time for shade.
+- **Avoid rain** (off by default) keeps the route under shelter (buildings, covered walkways) while it rains.
+  Sun strength and rain come from live Open-Meteo weather for the chosen date and time, shown under the route.
 - **Show shadows** draws the building and tree shadows for the chosen date and time. It is off by default and
   shadows are only fetched while it is on. Routes always account for shade, whether or not the overlay is shown.
 

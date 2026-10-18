@@ -16,7 +16,8 @@ import {
 const base: Scenario = {
   date: "2026-06-21",
   minutes: 14 * 60,
-  avoidance: 30,
+  sunAvoidance: 30,
+  avoidRain: false,
   start: null,
   end: null,
 };
@@ -26,12 +27,15 @@ const stats = (seconds: number) => ({
   distance_m: 1648.8,
   sun_percent: 95.1,
   sun_seconds: 900,
+  rain_percent: 0,
   geometry: { type: "LineString", coordinates: [[-79.51, 43.7715], [-79.496, 43.779]] },
 });
 
 const route = {
   when: "2026-06-21T14:00:00-04:00",
   w_sun: 3,
+  w_rain: 0,
+  weather: { source: "live", direct_wm2: 640, cloud_cover: 0.2, rain_mm_h: 0 },
   sun: { elevation_deg: 68.06, azimuth_deg: 205.31, is_daylight: true },
   origin: [43.7715, -79.51],
   destination: [43.779, -79.496],
@@ -39,6 +43,7 @@ const route = {
   contextroute: stats(1428.4),
   extra_seconds: 250.7,
   sun_percent_change: -33.4,
+  rain_percent_change: 0,
 };
 
 test("sun avoidance percent maps linearly onto w_sun and is clamped", () => {
@@ -50,10 +55,11 @@ test("sun avoidance percent maps linearly onto w_sun and is clamped", () => {
 });
 
 test("route query carries the current scenario, as numbers in backend units", () => {
-  const q = routeQuery({ ...base, avoidance: 50 });
+  const q = routeQuery({ ...base, sunAvoidance: 50, avoidRain: true });
   assert.equal(q.get("date"), "2026-06-21");
   assert.equal(q.get("time"), "14:00");
   assert.equal(q.get("w_sun"), "5");
+  assert.equal(q.get("w_rain"), "10");
   assert.equal(q.has("from_lat"), false);
   assert.equal(q.has("to_lat"), false);
 });
@@ -67,7 +73,7 @@ test("pins are sent as lat/lon pairs only when set", () => {
 });
 
 test("w_sun of 0 % avoidance is exactly 0 (fastest route)", () => {
-  assert.equal(routeQuery({ ...base, avoidance: 0 }).get("w_sun"), "0");
+  assert.equal(routeQuery({ ...base, sunAvoidance: 0 }).get("w_sun"), "0");
 });
 
 test("route query changes with every input; shadow query only with date/time", () => {
@@ -75,14 +81,15 @@ test("route query changes with every input; shadow query only with date/time", (
   for (const change of [
     { date: "2026-06-22" },
     { minutes: 600 },
-    { avoidance: 40 },
+    { sunAvoidance: 40 },
+    { avoidRain: true },
     { start: [43.77, -79.5] as [number, number] },
     { end: [43.78, -79.49] as [number, number] },
   ]) {
     assert.notEqual(q({ ...base, ...change }), q(base), JSON.stringify(change));
   }
   const sq = (s: Scenario) => shadowQuery(s).toString();
-  assert.equal(sq({ ...base, avoidance: 90, start: [1, 2] }), sq(base));
+  assert.equal(sq({ ...base, sunAvoidance: 90, avoidRain: true, start: [1, 2] }), sq(base));
   assert.notEqual(sq({ ...base, minutes: 605 }), sq(base));
 });
 
@@ -109,6 +116,8 @@ test("malformed /route responses are rejected instead of crashing the render", (
   assert.throws(() => parseRoute({ ...route, sun: { ...route.sun, elevation_deg: null } }));
   assert.throws(() => parseRoute({ ...route, origin: [43.7] }));
   assert.throws(() => parseRoute({ ...route, contextroute: { ...stats(1), geometry: null } }));
+  assert.throws(() => parseRoute({ ...route, weather: undefined }));
+  assert.throws(() => parseRoute({ ...route, weather: { ...route.weather, source: "guess" } }));
 });
 
 test("shadow collections, including the empty night-time one, parse", () => {

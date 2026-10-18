@@ -22,7 +22,9 @@ from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 
 from .shadow import MAX_SHADOW_LENGTH_M
-from .walking import annotate_graph_edges, assign_node_elevations
+
+# Keep the tags that mark a walkway as roofed (see SHELTER_TAGS in exposure.py).
+ox.settings.useful_tags_way = sorted(set(ox.settings.useful_tags_way) | {"covered", "indoor", "tunnel"})
 
 CAMPUS_CENTER = (43.7735, -79.5019)  # (lat, lon) approx. Vari Hall; used for sun position
 CAMPUS_OSM_WAY = 15396822            # "York University, Keele Campus"
@@ -84,9 +86,7 @@ def _load_massing_buildings() -> gpd.GeoDataFrame:
     buildings["height_m"] = buildings["MAX_HEIGHT"].astype(float)
     buildings["height_source"] = f"toronto_3d_massing_{MASSING_YEAR}"
     buildings["height_data_source"] = buildings["HEIGHT_SRC"].fillna("unknown")
-    return buildings[
-        ["geometry", "height_m", "height_source", "height_data_source", "SURF_ELEV"]
-    ].to_crs(METRIC_CRS)
+    return buildings[["geometry", "height_m", "height_source", "height_data_source"]].to_crs(METRIC_CRS)
 
 
 def _fetch_campus_polygon() -> BaseGeometry:
@@ -102,15 +102,10 @@ def load_campus() -> CampusData:
     )
 
     if all(f.exists() for f in (graph_f, bld_f, tree_f, poly_f)):
-        graph = ox.load_graphml(graph_f)
         buildings = gpd.read_file(bld_f)
         buildings.geometry = shapely.force_2d(buildings.geometry.array)
-        if "SURF_ELEV" not in buildings:
-            buildings = _load_massing_buildings()
-        assign_node_elevations(graph, buildings)
-        annotate_graph_edges(graph)
         return CampusData(
-            graph,
+            ox.load_graphml(graph_f),
             buildings,
             gpd.read_file(tree_f),
             gpd.read_file(poly_f).geometry.iloc[0],
@@ -125,8 +120,6 @@ def load_campus() -> CampusData:
     graph = ox.project_graph(graph, to_crs=METRIC_CRS)
 
     buildings = _load_massing_buildings()
-    assign_node_elevations(graph, buildings)
-    annotate_graph_edges(graph)
     shadow_zone = to_wgs84(campus.buffer(MAX_SHADOW_LENGTH_M))
 
     try:
