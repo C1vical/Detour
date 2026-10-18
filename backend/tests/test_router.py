@@ -258,3 +258,24 @@ def test_live_direct_radiation_drives_sun_exposure():
     assert r.sun_seconds == 0.0 and r.nodes == [ids["A"], ids["B"]]
     sunny = SunSchedule(*CAMPUS_CENTER, DAY, _weather(direct=800.0))
     assert sunny.intensity(NOON) == pytest.approx(0.8)
+
+
+def test_shadow_pieces_are_counter_clockwise_and_cover_the_shadow(campus):
+    # /shadows draws these with the nonzero fill rule, which needs consistent winding.
+    _, model = campus
+    when = datetime(2026, 6, 21, 16, 0, tzinfo=TZ)
+    pieces = model.shadow_pieces_at(when)
+    assert all(shapely.is_ccw(p.exterior) for p in pieces)
+    assert all(not shapely.is_ccw(hole) for p in pieces for hole in p.interiors)
+    exact = model.shadow_at(when)
+    assert shapely.union_all(pieces).symmetric_difference(exact).area < 1e-6 * exact.area
+
+
+def test_intensity_interpolates_between_minutes_like_numpy():
+    sun = SunSchedule(*CAMPUS_CENTER, DAY, _weather(direct=500.0))
+    rng = random.Random(0)
+    for _ in range(50):
+        when = DAY + timedelta(seconds=rng.uniform(-600, 25 * 3600))  # including outside the day
+        minutes = (when - DAY).total_seconds() / 60
+        expected = np.interp(minutes, np.arange(len(sun._intensity)), sun._intensity)
+        assert sun.intensity(when) == pytest.approx(expected)

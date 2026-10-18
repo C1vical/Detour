@@ -25,7 +25,7 @@ import numpy as np
 import shapely
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from pyproj import Transformer
 from shapely.geometry import LineString, mapping
@@ -100,6 +100,7 @@ class State:
     dest: int
     models: dict[tuple[Date, bool], ExposureModel]
     options: dict[tuple, tuple[RouteResult, list[RouteResult]]]
+    shadows: dict[int, bytes]  # /shadows response body per time slice
 
 
 state = State()
@@ -114,6 +115,7 @@ async def lifespan(_: FastAPI):
     state.dest = nearest_node(state.data.graph, DEST)
     state.models = {}
     state.options = {}
+    state.shadows = {}
     yield
 
 
@@ -276,16 +278,29 @@ def get_route(
 def get_shadows(
     date: Date | None = Query(None, description="YYYY-MM-DD (default: today)"),
     time: Time | None = Query(None, description="HH:MM, 24 h (default: now)"),
-) -> dict:
-    """GeoJSON FeatureCollection of the combined building shadow (empty at night)."""
+) -> Response:
+    """GeoJSON FeatureCollection of the building and tree shadows (no features at night).
+
+    One MultiPolygon of overlapping pieces, not their union: the union takes seconds
+    per time slice, the pieces milliseconds. Draw it with fill-rule nonzero (Leaflet:
+    fillRule: "nonzero") and it looks the same as the union.
+    """
     when = _parse_when(date, time)
     model = _model_for(when, clear_sky=True)  # shadow geometry doesn't depend on weather
-    shadow = model.shadow_at(when).simplify(0.5)
-    features = []
-    if not shadow.is_empty:
-        features.append({"type": "Feature", "properties": {},
-                         "geometry": mapping(_to_wgs84(shadow))})
-    return {"type": "FeatureCollection", "features": features}
+    key = model.slice_index(when)
+    body = state.shadows.get(key)
+    if body is None:
+        pieces = model.shadow_pieces_at(when)
+        features = ""
+        if len(pieces):
+            # 6 decimals of a degree is about 0.1 m, plenty for drawing and 40 % smaller.
+            geometry = shapely.transform(_to_wgs84(shapely.multipolygons(pieces)), lambda c: np.round(c, 6))
+            features = f'{{"type":"Feature","properties":{{}},"geometry":{shapely.to_geojson(geometry)}}}'
+        body = f'{{"type":"FeatureCollection","features":[{features}]}}'.encode()
+        if len(state.shadows) > 192:
+            state.shadows.clear()
+        state.shadows[key] = body
+    return Response(body, media_type="application/json")
 
 
 @app.get("/demo", include_in_schema=False)

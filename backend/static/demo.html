@@ -84,7 +84,7 @@ async function refresh() {
     ]);
     if (mine !== seq) return;  // a newer request superseded this one
     [shadowLayer, fastLayer, ctxLayer].concat(endpoints).forEach(l => l && map.removeLayer(l));
-    shadowLayer = L.geoJSON(s, { style: { color: "#222", weight: 0, fillOpacity: 0.35 } }).addTo(map);
+    shadowLayer = L.geoJSON(s, { style: { color: "#222", weight: 0, fillOpacity: 0.35, fillRule: "nonzero" } }).addTo(map);
     fastLayer = L.geoJSON(r.fastest.geometry, { style: { color: "#d1342f", weight: 5, opacity: 0.85 } }).addTo(map);
     ctxLayer = L.geoJSON(r.contextroute.geometry, { style: { color: "#1f8f3a", weight: 5, opacity: 0.9 } }).addTo(map);
     endpoints = [L.marker(r.origin).addTo(map).bindTooltip("Start"),

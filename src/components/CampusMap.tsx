@@ -230,6 +230,8 @@ export default function CampusMap() {
                 color: SHADOW_COLOR,
                 fillColor: SHADOW_COLOR,
                 fillOpacity: shadows.stale ? 0.12 : 0.32,
+                // The backend sends overlapping pieces; nonzero fills them as one shape.
+                fillRule: "nonzero",
                 weight: 0,
               }}
             />

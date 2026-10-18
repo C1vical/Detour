@@ -62,6 +62,7 @@ def test_dates_outside_the_supported_range_are_rejected(client):
 def test_shadows_geojson(client):
     j = client.get("/shadows", params={"date": "2026-12-21", "time": "15:00"}).json()
     assert j["type"] == "FeatureCollection" and len(j["features"]) == 1
+    assert j["features"][0]["geometry"]["type"] == "MultiPolygon"
     night = client.get("/shadows", params={"date": "2026-12-21", "time": "02:00"}).json()
     assert night["features"] == []
 

@@ -132,8 +132,10 @@ class ShadowCaster:
             length = np.minimum(self._h / tan_el, MAX_SHADOW_LENGTH_M)
             offset = length[:, None] * direction
             ring = np.stack([self._p1, self._p2, self._p2 + offset, self._p1 + offset, self._p1], axis=1)
+            sweeps = shapely.polygons(ring)
             pieces.append(self._ccv_fp)
-            pieces.append(shapely.polygons(ring))
+            # An edge parallel to the sun (or a 0 m building) sweeps no area; drop those.
+            pieces.append(sweeps[shapely.area(sweeps) > 0])
 
         return np.concatenate(pieces)
 

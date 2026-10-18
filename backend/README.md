@@ -68,8 +68,11 @@ options are cached per trip and time, so moving only the avoidance slider answer
 
 ### `GET /shadows`
 
-Query: `date`, `time`. Returns a GeoJSON FeatureCollection with the combined building and tree shadow (empty at night).
-Draw it as a semi-transparent polygon layer under the routes.
+Query: `date`, `time`. Returns a GeoJSON FeatureCollection with one MultiPolygon of building and tree shadow
+pieces (no features at night). The pieces overlap: computing their union takes seconds per time slice, so it is
+skipped. Draw it as one semi-transparent layer under the routes with the **nonzero** fill rule (Leaflet
+`fillRule: "nonzero"`), which fills overlaps once, so it looks exactly like the union. Responses are cached per
+15-minute slice.
 
 ### `GET /campus`
 
@@ -83,7 +86,7 @@ and the frontend draws it and refuses clicks outside it.
 ```tsx
 <GeoJSON key={`fast-${when}`} data={route.fastest.geometry} style={{ color: "#d1342f", weight: 5 }} />
 <GeoJSON key={`ctx-${when}`}  data={route.contextroute.geometry} style={{ color: "#1f8f3a", weight: 5 }} />
-<GeoJSON key={`shadow-${when}`} data={shadows} style={{ weight: 0, fillOpacity: 0.35 }} />
+<GeoJSON key={`shadow-${when}`} data={shadows} style={{ weight: 0, fillOpacity: 0.35, fillRule: "nonzero" }} />
 ```
 
 Debounce the date/time/slider input (about 150 ms) and ignore responses from superseded requests;

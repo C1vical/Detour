@@ -37,7 +37,7 @@ from .weather import DayWeather, rain_intensity
 WALK_SPEED_MPS = 1.4
 SAMPLE_SPACING_M = 1.5  # spacing of shade sample points along an edge
 CLEAR_SKY_DIRECT_WM2 = 1000.0  # direct radiation that counts as intensity 1
-MAX_CACHED_SLICES = 192  # shadow/shade slices kept per cache (two days of 15-min slices)
+MAX_CACHED_SLICES = 192  # shade-fraction slices kept (two days of 15-min slices)
 # OSM tag values on a walk edge that mean the walkway is roofed.
 SHELTER_TAGS = {"tunnel": {"building_passage", "yes"}, "covered": {"yes", "arcade", "colonnade"},
                 "indoor": {"yes", "corridor"}, "highway": {"corridor"}}
@@ -79,7 +79,11 @@ class SunSchedule:
         return (when - self.t0).total_seconds() / 60.0
 
     def _interp(self, values: np.ndarray, when: datetime) -> float:
-        return float(np.interp(self._minutes(when), np.arange(len(values)), values))
+        # Plain linear interpolation between whole minutes: called for every edge the
+        # router looks at, where np.interp's per-call overhead dominated the search.
+        m = min(max(self._minutes(when), 0.0), len(values) - 1.0)
+        i = min(int(m), len(values) - 2)
+        return float(values[i] + (values[i + 1] - values[i]) * (m - i))
 
     def intensity(self, when: datetime) -> float:
         """Relative direct-sun intensity at `when`, linearly interpolated between minutes."""
@@ -106,7 +110,6 @@ class ExposureModel:
         self.speed = speed
         self._caster = ShadowCaster(building_list(data), tree_list(data))
         self._shade_cache: dict[int, np.ndarray] = {}
-        self._shadow_cache: dict[int, shapely.Geometry] = {}
 
         self.edges: list[EdgeRef] = []
         self.edge_index: dict[tuple[int, int, int], int] = {}
@@ -133,6 +136,9 @@ class ExposureModel:
         frac = (within + 0.5) / np.repeat(counts, counts)
         self._samples = shapely.line_interpolate_point(self._lines[self._sample_edge], frac, normalized=True)
         self._sample_counts = counts
+        # The samples never move, so index them once; each time slice then queries
+        # this tree with its few thousand shadow pieces.
+        self._sample_tree = shapely.STRtree(self._samples)
 
     def _shelter_fractions(self, data: CampusData, edge_attrs: list[dict]) -> np.ndarray:
         """g(e): share of each edge's sample points inside a building, or 1 for roofed walkways."""
@@ -169,25 +175,32 @@ class ExposureModel:
 
     # --- shade -------------------------------------------------------------
 
-    def _slice(self, when: datetime) -> int:
+    def slice_index(self, when: datetime) -> int:
+        """Which time slice `when` falls in; every time in one slice has the same shadows."""
         return int(round(when.timestamp() / self.slice_seconds))
 
     def _position_for_slice(self, when: datetime) -> SunPosition:
-        slice_time = datetime.fromtimestamp(self._slice(when) * self.slice_seconds, tz=when.tzinfo)
+        slice_time = datetime.fromtimestamp(self.slice_index(when) * self.slice_seconds, tz=when.tzinfo)
         return self.sun.position(slice_time)
 
     def shadow_at(self, when: datetime):
-        """Combined building shadow polygon (metric CRS) for the time slice nearest `when`."""
-        key = self._slice(when)
-        shadow = self._shadow_cache.get(key)
-        if shadow is None:
-            shadow = self._caster.shadow(self._position_for_slice(when))
-            _remember(self._shadow_cache, key, shadow)
-        return shadow
+        """Exact combined shadow polygon (metric CRS) for the time slice nearest `when`.
+
+        Slow (a union of thousands of pieces); for drawing, use shadow_pieces_at().
+        """
+        return self._caster.shadow(self._position_for_slice(when))
+
+    def shadow_pieces_at(self, when: datetime) -> np.ndarray:
+        """Overlapping polygons whose union is the shadow at the slice nearest `when`.
+
+        Exteriors run counter-clockwise and holes clockwise, so drawn as one path with
+        the nonzero fill rule they look exactly like the union, without computing it.
+        """
+        return shapely.orient_polygons(self._caster.pieces(self._position_for_slice(when)))
 
     def shade_fractions(self, when: datetime) -> np.ndarray:
         """f(e) for every edge at the time slice nearest `when` (1 = fully shaded)."""
-        key = self._slice(when)
+        key = self.slice_index(when)
         cached = self._shade_cache.get(key)
         if cached is not None:
             return cached
@@ -195,7 +208,7 @@ class ExposureModel:
         if len(pieces) == 0:
             frac = np.zeros(len(self.edges))
         else:
-            hit = shapely.STRtree(pieces).query(self._samples, predicate="intersects")[0]
+            hit = self._sample_tree.query(pieces, predicate="intersects")[1]
             shaded = np.zeros(len(self._samples))
             shaded[np.unique(hit)] = 1.0
             frac = np.bincount(self._sample_edge, weights=shaded, minlength=len(self.edges)) / self._sample_counts
