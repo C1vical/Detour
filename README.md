@@ -31,8 +31,8 @@ the tile layer.
 [Python](https://www.python.org/downloads/) 3.12 or newer (developed on 3.14).
 
 ```bash
-git clone https://github.com/rish-mishra/mathhacks.git
-cd mathhacks
+git clone https://github.com/C1vical/Detour.git
+cd Detour
 npm run setup   # once: npm packages, a .venv virtualenv and the Python packages (a few minutes)
 npm run dev     # starts the backend (:8000) and the frontend (:3000) together
 ```
