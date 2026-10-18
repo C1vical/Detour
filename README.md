@@ -82,6 +82,27 @@ The frontend calls the backend at `http://localhost:8000`; set
 - **`pip install` fails on geopandas/osmnx:** make sure you're on a recent
   Python, delete `.venv` and run `npm run setup` again.
 
+## Deploying
+
+The backend runs on [Render](https://render.com) (it must stay running: the site asks it for every route
+and shadow), and the frontend on [Vercel](https://vercel.com). Both redeploy on every push to `main`.
+
+1. **Backend on Render.** Dashboard → **New** → **Blueprint** → pick this repo. Render reads
+   `render.yaml` (Python version from `.python-version`). Leave `ALLOWED_ORIGINS` empty for now and deploy.
+   The first build takes a few minutes. Check `https://<your-service>.onrender.com/health` says `"ok"`.
+2. **Frontend on Vercel.** **Add New** → **Project** → import this repo (Next.js is detected). Under
+   **Environment Variables** set `NEXT_PUBLIC_API_URL` to the Render address from step 1, then deploy.
+3. **Let the site call the backend.** In Render → the service → **Environment**, set `ALLOWED_ORIGINS` to the
+   Vercel address (e.g. `https://detour.vercel.app`; separate several with commas) and save. Render restarts it.
+
+Notes:
+
+- `NEXT_PUBLIC_API_URL` is built into the frontend, so after changing it, redeploy on Vercel.
+- `render.yaml` uses the **free** plan, which sleeps after 15 minutes without visitors; the next visit then waits
+  about a minute while it wakes. For an always-on backend, change `plan: free` to `plan: 0.5c-512mb`
+  (512 MB is enough; the backend peaks around 260 MB).
+- To also allow Vercel preview deployments, set `ALLOWED_ORIGIN_REGEX` on Render, e.g. `https://detour-.*\.vercel\.app`.
+
 ## Using the map
 
 - Click the map to place the start and end pins, or drag them; the route appears once both are placed, and **Reset** removes the pins. The campus is outlined in orange and everything outside it is greyed out;

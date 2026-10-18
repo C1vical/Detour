@@ -6,7 +6,7 @@ includes sun exposure. Served to the frontend over HTTP by FastAPI.
 ## Run it
 
 ```
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # requirements.txt + pytest
 uvicorn backend.api:app --reload --port 8000
 ```
 
@@ -34,7 +34,8 @@ Or, from the repo root, `npm run setup` once and then `npm run dev`, which runs 
 
 The frontend never does routing, sun or weather math. It sends the date, time and settings,
 and draws what comes back, including the weather the backend used.
-The backend allows CORS from `http://localhost:3000`.
+The backend allows CORS from `http://localhost:3000`, plus the sites listed in the `ALLOWED_ORIGINS` env var
+(comma-separated) and `ALLOWED_ORIGIN_REGEX` when deployed; see "Deploying" in the top-level README.
 
 ### `GET /route`
 

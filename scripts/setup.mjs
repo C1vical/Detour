@@ -29,6 +29,6 @@ function systemPython() {
 if (!existsSync(join(ROOT, "node_modules"))) run("npm install");
 if (!venvPython()) run(systemPython(), ["-m", "venv", VENV]);
 run(venvPython(), ["-m", "pip", "install", "--upgrade", "pip"]);
-run(venvPython(), ["-m", "pip", "install", "-r", "requirements.txt"]);
+run(venvPython(), ["-m", "pip", "install", "-r", "requirements-dev.txt"]);
 
 console.log("\nSetup done. Start the app with: npm run dev");

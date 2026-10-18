@@ -7,6 +7,5 @@ osmnx==2.1.1
 pandas==3.0.6
 pvlib==0.16.1
 pyproj==3.8.0
-pytest==9.1.1
 shapely==2.2.0
 uvicorn==0.54.0

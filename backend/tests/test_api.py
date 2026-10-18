@@ -98,3 +98,16 @@ def test_campus_outline_and_pins_outside_it(client):
                "to_lat": 43.7790, "to_lon": -79.4960}
     r = client.get("/route", params=outside)
     assert r.status_code == 422 and "outside York University" in r.json()["detail"]
+
+
+def test_allowed_origins_add_the_deployed_site_to_local_dev():
+    from backend.api import LOCAL_ORIGINS, allowed_origins
+    assert allowed_origins({}) == LOCAL_ORIGINS
+    env = {"ALLOWED_ORIGINS": " https://detour.vercel.app/ ,https://detour.example.com"}
+    assert allowed_origins(env) == LOCAL_ORIGINS + ["https://detour.vercel.app", "https://detour.example.com"]
+
+
+def test_cors_allows_the_local_frontend(client):
+    r = client.get("/health", headers={"Origin": "http://localhost:3000"})
+    assert r.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert "access-control-allow-origin" not in client.get("/health", headers={"Origin": "https://evil.example"}).headers

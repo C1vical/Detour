@@ -15,6 +15,7 @@ Date/time are interpreted as Toronto local time.
 """
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from datetime import date as Date, datetime, time as Time
 from pathlib import Path
@@ -42,6 +43,7 @@ _to_metric = Transformer.from_crs("EPSG:4326", METRIC_CRS, always_xy=True)
 MAX_SNAP_M = 150.0  # a clicked point farther than this from any path is rejected
 # Supported dates; far outside this, datetime.timestamp() fails on some platforms.
 MIN_DATE, MAX_DATE = Date(1900, 1, 1), Date(2100, 12, 31)
+LOCAL_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]  # the Next.js dev server
 
 
 def _to_wgs84(geom):
@@ -115,10 +117,19 @@ async def lifespan(_: FastAPI):
     yield
 
 
+def allowed_origins(env=os.environ) -> list[str]:
+    """Sites allowed to call the API: local dev, plus ALLOWED_ORIGINS (comma-separated,
+    e.g. the Vercel URL) when deployed."""
+    extra = [o.strip().rstrip("/") for o in env.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+    return LOCAL_ORIGINS + extra
+
+
 app = FastAPI(title="ContextRoute backend", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=allowed_origins(),
+    # Optional, e.g. https://detour-.*\.vercel\.app to also allow Vercel preview deployments.
+    allow_origin_regex=os.environ.get("ALLOWED_ORIGIN_REGEX") or None,
     allow_methods=["GET"],
     allow_headers=["*"],
 )
