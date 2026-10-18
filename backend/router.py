@@ -53,14 +53,14 @@ class NoRouteError(Exception):
 @dataclass
 class RouteResult:
     nodes: list[int]
-    edges: list[int]                 # edge indices into ExposureModel.edges
-    seconds: float                   # travel time T
+    edges: list[int]                
+    seconds: float                 
     distance_m: float
-    sun_seconds: float               # S(P), sun-seconds actually received
-    full_sun_seconds: float          # what the same path would give with no shade
-    rain_seconds: float              # W(P), rain-seconds actually received
-    full_rain_seconds: float         # what the same path would give with no shelter
-    expanded: int = 0                # nodes settled by the search (for comparing A* vs Dijkstra)
+    sun_seconds: float            
+    full_sun_seconds: float      
+    rain_seconds: float          
+    full_rain_seconds: float    
+    expanded: int = 0         
     cost: float = 0.0
 
     @property
