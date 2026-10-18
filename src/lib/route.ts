@@ -1,6 +1,5 @@
-// Pure helpers shared by CampusMap: API contract types, request building and
-// response validation. No routing, sun or weather math lives here; the backend
-// is the source of truth for those.
+// API contract, request building and response validation for CampusMap. All routing, sun and
+// weather maths lives in the backend.
 import type { FeatureCollection, GeoJsonObject } from "geojson";
 
 export type LatLon = [number, number];
@@ -8,13 +7,12 @@ export type LatLon = [number, number];
 export type RouteStats = {
   seconds: number;
   distance_m: number;
-  sun_percent: number;
-  sun_seconds: number;
-  rain_percent: number;
+  sun_percent: number; // 0-100
+  rain_percent: number; // 0-100
   geometry: GeoJsonObject; // LineString, [lon, lat]
 };
 
-// Weather at the requested time. Values are null unless source is "live".
+// Values are null unless source is "live".
 export type Weather = {
   source: "live" | "clear_sky" | "unavailable";
   direct_wm2: number | null;
@@ -22,61 +20,45 @@ export type Weather = {
   rain_mm_h: number | null;
 };
 
+// The parts of the /route response the UI uses; backend/README.md lists the rest.
 export type RouteResponse = {
-  when: string;
-  sun_avoidance: number; // 0-100 %
-  w_rain: number;
-  route_options: number; // time/shade trade-offs this trip has; the slider picks one
+  route_options: number;
   weather: Weather;
-  sun: { elevation_deg: number; azimuth_deg: number; is_daylight: boolean };
-  origin: LatLon; // [lat, lon]
-  destination: LatLon;
   fastest: RouteStats;
-  contextroute: RouteStats;
+  contextroute: RouteStats; // the Detour route
   extra_seconds: number;
-  sun_percent_change: number; // percentage points: contextroute - fastest
-  rain_percent_change: number;
 };
-
-export type ShadowCollection = FeatureCollection;
 
 export type Scenario = {
   date: string; // YYYY-MM-DD, Toronto local
   minutes: number; // minutes after local midnight
   sunAvoidance: number; // 0-100 %
   avoidRain: boolean;
-  start: LatLon | null;
-  end: LatLon | null;
+  start: LatLon;
+  end: LatLon;
 };
 
-export const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
-).replace(/\/+$/, "");
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
 export const KEELE_CAMPUS_CENTER: LatLon = [43.7735, -79.5019];
-// Walk graph extent (43.7665..43.7823, -79.5215..-79.4915) plus a small margin.
+// The walk graph's extent plus a small margin.
 export const CAMPUS_BOUNDS: [LatLon, LatLon] = [
   [43.764, -79.525],
   [43.785, -79.488],
 ];
 export const MIN_ZOOM = 15;
-
-// Sent as-is: the backend finds every time/shade trade-off of the trip and
-// picks the quickest route that avoids this % of the sun they can avoid.
 export const DEFAULT_AVOIDANCE = 50;
-// "Avoid rain" trades up to 10 s of extra walking for each second out in
-// moderate rain; it only changes the route while it is raining.
-export const AVOID_RAIN_W = 10;
-// Dates the backend accepts (it answers 422 outside them).
+// "Avoid rain" trades up to 10 s of walking for each second out in moderate rain.
+const AVOID_RAIN_W = 10;
+// Dates the backend accepts.
 export const MIN_DATE = "1900-01-01";
 export const MAX_DATE = "2100-12-31";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export const minutesToTime = (m: number) =>
-  `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+export const minutesToTime = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 
-// Current Toronto wall-clock date and time, to the minute.
+// Toronto wall-clock date and time, to the minute, whatever the device's time zone.
 export function nowInToronto(now = new Date()): { date: string; minutes: number } {
   const p = Object.fromEntries(
     new Intl.DateTimeFormat("en-CA", {
@@ -97,60 +79,44 @@ export function nowInToronto(now = new Date()): { date: string; minutes: number 
   };
 }
 
-export function routeQuery(s: Scenario) {
-  const q = new URLSearchParams({
+export const routeQuery = (s: Scenario) =>
+  new URLSearchParams({
     date: s.date,
     time: minutesToTime(s.minutes),
-    sun_avoidance: String(Math.min(100, Math.max(0, s.sunAvoidance))),
+    sun_avoidance: String(s.sunAvoidance),
     w_rain: String(s.avoidRain ? AVOID_RAIN_W : 0),
+    from_lat: String(s.start[0]),
+    from_lon: String(s.start[1]),
+    to_lat: String(s.end[0]),
+    to_lon: String(s.end[1]),
   });
-  if (s.start) {
-    q.set("from_lat", String(s.start[0]));
-    q.set("from_lon", String(s.start[1]));
-  }
-  if (s.end) {
-    q.set("to_lat", String(s.end[0]));
-    q.set("to_lon", String(s.end[1]));
-  }
-  return q;
-}
 
 export const shadowQuery = (s: Pick<Scenario, "date" | "minutes">) =>
   new URLSearchParams({ date: s.date, time: minutesToTime(s.minutes) });
 
-// --- response validation -----------------------------------------------------
+// --- response validation: a bad response becomes an error message, not a crash -----------
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null;
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isLatLon = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every(isNum);
 
-function isStats(v: unknown) {
-  return (
-    isObj(v) &&
-    isNum(v.seconds) &&
-    isNum(v.distance_m) &&
-    isNum(v.sun_percent) &&
-    isNum(v.rain_percent) &&
-    isObj(v.geometry) &&
-    typeof v.geometry.type === "string"
-  );
-}
+const isStats = (v: unknown) =>
+  isObj(v) &&
+  isNum(v.seconds) &&
+  isNum(v.distance_m) &&
+  isNum(v.sun_percent) &&
+  isNum(v.rain_percent) &&
+  isObj(v.geometry) &&
+  typeof v.geometry.type === "string";
 
 export function parseRoute(v: unknown): RouteResponse {
   if (
     isObj(v) &&
-    isObj(v.sun) &&
-    isNum(v.sun.elevation_deg) &&
-    isNum(v.sun.azimuth_deg) &&
-    typeof v.sun.is_daylight === "boolean" &&
-    isLatLon(v.origin) &&
-    isLatLon(v.destination) &&
     isStats(v.fastest) &&
     isStats(v.contextroute) &&
     isNum(v.extra_seconds) &&
     isNum(v.route_options) &&
-    isNum(v.sun_percent_change) &&
     isObj(v.weather) &&
     ["live", "clear_sky", "unavailable"].includes(v.weather.source as string)
   ) {
@@ -159,9 +125,9 @@ export function parseRoute(v: unknown): RouteResponse {
   throw new Error("unexpected /route response");
 }
 
-export function parseShadows(v: unknown): ShadowCollection {
+export function parseShadows(v: unknown): FeatureCollection {
   if (isObj(v) && v.type === "FeatureCollection" && Array.isArray(v.features)) {
-    return v as unknown as ShadowCollection;
+    return v as unknown as FeatureCollection;
   }
   throw new Error("unexpected /shadows response");
 }
@@ -178,8 +144,7 @@ export function parseCampus(v: unknown): LatLon[] {
   throw new Error("unexpected /campus response");
 }
 
-// Point-in-polygon by ray casting: is `p` inside the closed `ring`? Pins are only
-// placed inside the campus; the backend checks the same boundary.
+// Ray casting: is `p` inside the closed `ring`?
 export function insideRing([lat, lon]: LatLon, ring: LatLon[]) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -192,6 +157,7 @@ export function insideRing([lat, lon]: LatLon, ring: LatLon[]) {
   return inside;
 }
 
+// Fetch JSON from the backend; errors carry the backend's message. Aborts are rethrown as-is.
 export async function getJson(path: string, signal: AbortSignal): Promise<unknown> {
   let res: Response;
   try {
@@ -202,9 +168,7 @@ export async function getJson(path: string, signal: AbortSignal): Promise<unknow
   }
   if (!res.ok) {
     const body: unknown = await res.json().catch(() => null);
-    throw new Error(
-      isObj(body) && typeof body.detail === "string" ? body.detail : `HTTP ${res.status}`,
-    );
+    throw new Error(isObj(body) && typeof body.detail === "string" ? body.detail : `HTTP ${res.status}`);
   }
   return res.json();
 }

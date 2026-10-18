@@ -10,9 +10,6 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
 # next.js
 /.next/
 /out/
@@ -44,7 +41,6 @@ next-env.d.ts
 .venv/
 __pycache__/
 *.pyc
-.pytest_cache/
 
 # IDE / local tooling
 .idea/

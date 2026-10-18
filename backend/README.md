@@ -42,7 +42,7 @@ top-level README.
 Query: `date` (YYYY-MM-DD, 1900-01-01 to 2100-12-31; 422 outside), `time` (HH:MM, Toronto local),
 `sun_avoidance` (0-100 %, default 50; 0 = fastest, 100 = shadiest, see below),
 `w_rain` (0-50, default 0; the frontend sends 10 when "Avoid rain" is on),
-optional `from_lat/from_lon/to_lat/to_lon` pins (default: the demo trip in `backend/trip.py`),
+optional `from_lat/from_lon/to_lat/to_lon` pins (default: the demo trip, `ORIGIN`/`DEST` in `backend/api.py`),
 and `clear_sky=true`, which ignores live weather (clear, dry sky); the frontend doesn't use it.
 
 A pin outside the campus boundary is answered with 422. Any pin inside it snaps to the nearest walkway node, however
@@ -141,8 +141,7 @@ date      -> Open-Meteo hourly direct radiation + precipitation -> sun intensity
 | `weather.py` | Open-Meteo client: hourly direct radiation, cloud cover, precipitation for a date (cached 30 min) |
 | `exposure.py` | per-edge shade and shelter fractions; sun- and rain-exposure integrals |
 | `router.py` | A* fastest route; Pareto set of time/sun trade-offs and the avoidance pick |
-| `trip.py` | the demo trip's start and end, and the nearest-graph-node lookup |
-| `api.py` | FastAPI endpoints and caches |
+| `api.py` | FastAPI endpoints, caches, pin snapping and the demo trip |
 
 ## Assumptions (for the judges' explanation)
 

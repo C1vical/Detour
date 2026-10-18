@@ -1,20 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #121212;
-
   /* Brand */
   --ink: #121212;
-  --muted: #6b6762;
-  --faint: #9a958f;
   --line: #e7e2da;
-  --paper: #fbf9f5;
   --paper-2: #f2eee7;
   --white: #ffffff;
   --orange: #f26b1d;
   --orange-deep: #c8520f;
-  --orange-soft: #fdeee4;
   --focus: #f26b1d;
 
   /* Routes (separate from brand) */
@@ -28,7 +21,6 @@
   --s3: 0.75rem;
   --s4: 1rem;
   --s5: 1.25rem;
-  --s6: 1.5rem;
 
   --mono: var(--font-geist-mono), ui-monospace, monospace;
   --elev: 0 1px 2px rgb(0 0 0 / 0.08), 0 10px 28px rgb(0 0 0 / 0.14);
@@ -37,8 +29,6 @@
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -86,9 +76,8 @@ body {
   gap: var(--s3);
 }
 
-/* The wordmark PNG (2048x925) has a wide transparent margin. Crop to the
-   logo plus a little of that margin (x 180-1860, y 180-744) by scaling the
-   image inside a fixed-ratio box; the asset is not altered. */
+/* The wordmark PNG (2048x925) has a wide transparent margin: crop it to the logo
+   (x 180-1860, y 180-744) by scaling the image inside a fixed-ratio box. */
 .wordmark {
   aspect-ratio: 1680 / 564;
   flex: none;

@@ -1,15 +1,5 @@
-"""Hourly weather for the campus from Open-Meteo (no API key).
-
-Used for two things:
-  direct_radiation  W/m² of direct beam on the ground; shade only blocks this
-                    part of sunlight, so it is the sun intensity the router uses
-  precipitation     mm/h, for rain exposure on unsheltered walkways
-cloud_cover is only reported to the UI.
-
-Open-Meteo's radiation and precipitation are averages over the hour *ending*
-at each timestamp, so values are placed at the middle of that hour before
-interpolating to the minute.
-"""
+"""Hourly Open-Meteo weather for the campus (no API key): direct radiation sets the sun intensity,
+precipitation the rain intensity; cloud cover is only shown in the UI."""
 from __future__ import annotations
 
 import time
@@ -19,7 +9,7 @@ from datetime import date as Date, datetime
 import httpx
 import numpy as np
 
-FORECAST_URL = "https://api.open-meteo.com/v1/forecast"   # ~3 months back to 16 days ahead
+FORECAST_URL = "https://api.open-meteo.com/v1/forecast"   # about 3 months back to 16 days ahead
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"  # older dates
 FIELDS = ("direct_radiation", "cloud_cover", "precipitation")
 CACHE_SECONDS = 1800
@@ -31,33 +21,28 @@ _cache: dict[Date, tuple[float, DayWeather | None]] = {}
 
 @dataclass
 class DayWeather:
-    """Weather over one local day at 1-minute resolution (index 0 = midnight)."""
+    """One local day at 1-minute resolution (index 0 = midnight)."""
     direct: np.ndarray  # W/m²
     cloud: np.ndarray   # 0-1
     rain: np.ndarray    # mm/h
 
     @classmethod
     def from_hourly(cls, hourly: dict) -> DayWeather:
-        """Build from Open-Meteo's `hourly` block for a single day (24 values per field)."""
         values = {f: np.asarray(hourly[f], dtype=float) for f in FIELDS}
         if any(len(v) != 24 or np.isnan(v).any() for v in values.values()):
             raise ValueError("incomplete hourly weather")
         minutes = np.arange(24 * 60 + 1)
         at_hour = np.arange(24) * 60.0
-        mid_hour = at_hour - 30.0  # averages over the preceding hour
+        mid_hour = at_hour - 30.0  # radiation and precipitation are averages over the preceding hour
         return cls(
             direct=np.interp(minutes, mid_hour, values["direct_radiation"]),
             cloud=np.interp(minutes, at_hour, values["cloud_cover"] / 100.0),
             rain=np.interp(minutes, mid_hour, values["precipitation"]),
         )
 
-    def _index(self, when: datetime) -> int:
-        minute = when.hour * 60 + when.minute
-        return min(max(minute, 0), len(self.direct) - 1)
-
     def at(self, when: datetime) -> tuple[float, float, float]:
         """(direct W/m², cloud 0-1, rain mm/h) at `when`, to the minute."""
-        i = self._index(when)
+        i = min(when.hour * 60 + when.minute, len(self.direct) - 1)
         return float(self.direct[i]), float(self.cloud[i]), float(self.rain[i])
 
 
@@ -86,7 +71,6 @@ def day_weather(lat: float, lon: float, day: Date) -> DayWeather | None:
     return weather
 
 
-def rain_intensity(rain_mm_h: np.ndarray | float) -> np.ndarray | float:
+def rain_intensity(rain_mm_h: np.ndarray) -> np.ndarray:
     """Relative rain intensity R in [0, 1]: 4 mm/h (moderate rain) or more counts as 1."""
     return np.minimum(1.0, np.asarray(rain_mm_h) / 4.0)
-

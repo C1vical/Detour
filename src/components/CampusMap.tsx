@@ -64,8 +64,7 @@ const DETOUR_COLOR = "#138a3e";
 const FAST_COLOR = "#e0161b";
 
 const CAMPUS_COLOR = "#c8520f"; // --orange-deep
-// Everything outside the campus is greyed out: a box well past the map's
-// maxBounds with the campus cut out of it.
+// A box well past the map's bounds; with the campus cut out, it greys out the surroundings.
 const OUTSIDE: LatLon[] = [
   [43.6, -79.8],
   [43.95, -79.8],
@@ -76,7 +75,7 @@ const OFF_CAMPUS = "Pins must be inside York University's Keele Campus.";
 
 const isRaining = (w: Weather) => (w.rain_mm_h ?? 0) > 0;
 
-// One line for the panel, so the weather the route was computed with is visible.
+// The weather the route was computed with, in one line.
 function describeWeather(w: Weather) {
   if (w.source === "clear_sky") return "Clear sky (simulated).";
   if (w.source === "unavailable") return "Weather unavailable, assuming clear sky.";
@@ -89,9 +88,8 @@ function ClickToPlace({ onPick }: { onPick: (p: LatLon) => void }) {
   return null;
 }
 
-// A debounced GET. The result remembers the path it was fetched for, so the
-// map can dim it while the current path differs (`stale`). A null path skips
-// the request.
+// A debounced GET that aborts superseded requests. `stale`: the value shown belongs to an older
+// path, so the map dims it. A null path skips the request.
 function useRemote<T>(path: string | null, parse: (v: unknown) => T) {
   const [loaded, setLoaded] = useState<{ path: string; value: T } | null>(null);
   const [error, setError] = useState<{ path: string; message: string } | null>(null);
@@ -130,7 +128,7 @@ function useRemote<T>(path: string | null, parse: (v: unknown) => T) {
 }
 
 export default function CampusMap() {
-  // Date and time default to the present; any change below refetches the route (and the shadows, when shown).
+  // Date and time start at now, in Toronto.
   const [initialNow] = useState(() => nowInToronto());
   const [date, setDate] = useState(initialNow.date);
   const [minutes, setMinutes] = useState(initialNow.minutes);
@@ -158,8 +156,7 @@ export default function CampusMap() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const r = start && end ? route.value : undefined;
-  // The campus fetch fails too if the page loads before the backend is up, so it is
-  // reported and retried with the others; Retry only refetches what failed.
+  // Retry refetches only what failed (the campus too, if the page loaded before the backend).
   const failed =
     route.error ??
     (shadows.error && `shadows: ${shadows.error}`) ??
@@ -210,8 +207,7 @@ export default function CampusMap() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {/* Greyed-out surroundings and the campus outline, under shadows and routes.
-            Not interactive, so clicks still reach the map (and get rejected off campus). */}
+        {/* Greyed-out surroundings and the campus outline; not interactive, so clicks reach the map. */}
         <Pane name="campus" style={{ zIndex: 340 }}>
           {campus && (
             <>
@@ -246,12 +242,10 @@ export default function CampusMap() {
             />
           )}
         </Pane>
-        {/* Keyed by the request path: react-leaflet's GeoJSON
-            ignores later changes to its data prop. Stale routes are dimmed. */}
+        {/* Keyed by request path, since react-leaflet's GeoJSON ignores new data. Each route sits on a
+            white casing; Detour is drawn last, on top. Stale routes are dimmed. */}
         {r && (
           <>
-            {/* Fastest is a dotted reference line; Detour is the hero, drawn
-                last. Both sit on a white casing so they read over the map. */}
             <GeoJSON
               key={`fast-casing-${route.path}`}
               data={r.fastest.geometry}
@@ -303,8 +297,7 @@ export default function CampusMap() {
             />
           </>
         )}
-        {/* Routes follow the walkway graph, so they can stop short of a pin
-            placed off the path; dotted links close the gap on both routes. */}
+        {/* Dotted links from each pin to where its route joins the walkway graph. */}
         {r &&
           start &&
           end &&

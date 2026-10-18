@@ -1,11 +1,5 @@
-"""Sun position: solar elevation and azimuth for a place and time.
-
-Conventions used everywhere in the backend:
-  elevation  theta: degrees above the horizon (0 = horizon, 90 = overhead)
-  azimuth    alpha: degrees clockwise from north (90 = east, 180 = south)
-
-Positions come from pvlib (NREL SPA); times must be timezone-aware.
-"""
+"""Sun position from pvlib (NREL SPA): elevation in degrees above the horizon, azimuth in degrees
+clockwise from north (90 = east, 180 = south)."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -16,8 +10,8 @@ from pvlib import solarposition
 
 @dataclass(frozen=True)
 class SunPosition:
-    elevation: float  # degrees above horizon
-    azimuth: float    # degrees clockwise from north
+    elevation: float
+    azimuth: float
 
     @property
     def is_up(self) -> bool:
@@ -25,7 +19,6 @@ class SunPosition:
 
 
 def sun_positions(lat: float, lon: float, times: pd.DatetimeIndex) -> pd.DataFrame:
-    """Vectorised version: DataFrame with `elevation` and `azimuth` columns."""
+    """`elevation` (apparent, with refraction) and `azimuth` columns for timezone-aware `times`."""
     sp = solarposition.get_solarposition(times, lat, lon)
     return sp[["apparent_elevation", "azimuth"]].rename(columns={"apparent_elevation": "elevation"})
-

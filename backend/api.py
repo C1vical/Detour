@@ -1,17 +1,5 @@
-"""HTTP API for the frontend.
-
-Run from the repo root:   uvicorn backend.api:app --reload --port 8000
-Interactive docs:          http://localhost:8000/docs
-
-Endpoints
-    GET /route    fastest route vs the Detour route (demo trip by default, or between clicked points), at a given date/time
-    GET /shadows  building and tree shadows (GeoJSON) at a given date/time, to draw on the map
-    GET /campus   the campus boundary (GeoJSON); pins outside it are rejected
-    GET /health
-
-All geometry is GeoJSON in WGS84 (longitude, latitude), which Leaflet/MapLibre read directly.
-Date/time are interpreted as Toronto local time.
-"""
+"""FastAPI backend for the Detour map: /route, /shadows, /campus and /health.
+Dates and times are Toronto local time; geometry is GeoJSON, so coordinates are [lon, lat]."""
 from __future__ import annotations
 
 import os
@@ -31,27 +19,20 @@ from shapely.geometry import LineString, mapping
 from .data import CAMPUS_CENTER, METRIC_CRS, CampusData, load_campus
 from .exposure import ExposureModel, SunSchedule
 from .router import NoRouteError, RouteResult, pick, route, shade_options
-from .trip import DEST, ORIGIN, nearest_node
 from .weather import day_weather
 
 TZ = ZoneInfo("America/Toronto")
-_transformer = Transformer.from_crs(METRIC_CRS, "EPSG:4326", always_xy=True)
-_to_metric = Transformer.from_crs("EPSG:4326", METRIC_CRS, always_xy=True)
-# Supported dates; far outside this, datetime.timestamp() fails on some platforms.
-MIN_DATE, MAX_DATE = Date(1900, 1, 1), Date(2100, 12, 31)
+ORIGIN, DEST = (43.7715, -79.5100), (43.7790, -79.4960)  # (lat, lon) demo trip, used when no pins are given
+MIN_DATE, MAX_DATE = Date(1900, 1, 1), Date(2100, 12, 31)  # far outside this, datetime.timestamp() can fail
 LOCAL_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]  # the Next.js dev server
-# /shadows bodies kept: a day's daylight of 15-min slices. A midday body is about 1.5 MB,
-# so this keeps the cache under 100 MB (192 could push a 512 MB server out of memory).
-MAX_CACHED_SHADOWS = 64
-MAX_CACHED_SNAPS = 256  # pin -> nearest graph node
+MAX_CACHED_SHADOWS = 64  # a midday /shadows body is about 1.5 MB; this keeps a 512 MB server safe
+_to_lonlat = Transformer.from_crs(METRIC_CRS, "EPSG:4326", always_xy=True)
+_to_metric = Transformer.from_crs("EPSG:4326", METRIC_CRS, always_xy=True)
 
 
 def _to_wgs84(geom):
-    """Metric-CRS shapely geometry -> lon/lat."""
-    return shapely.transform(geom, lambda c: np.column_stack(_transformer.transform(c[:, 0], c[:, 1])))
+    return shapely.transform(geom, lambda c: np.column_stack(_to_lonlat.transform(c[:, 0], c[:, 1])))
 
-
-# --- response models --------------------------------------------------------
 
 class RouteOut(BaseModel):
     seconds: float
@@ -59,7 +40,7 @@ class RouteOut(BaseModel):
     sun_percent: float
     sun_seconds: float
     rain_percent: float
-    geometry: dict  # GeoJSON LineString, [lon, lat]
+    geometry: dict  # GeoJSON LineString
 
 
 class SunOut(BaseModel):
@@ -69,9 +50,9 @@ class SunOut(BaseModel):
 
 
 class WeatherOut(BaseModel):
-    source: str                 # "live" (Open-Meteo), "clear_sky" (forced), "unavailable" (fetch failed)
-    direct_wm2: float | None    # direct sunlight on the ground at `when`
-    cloud_cover: float | None   # 0-1
+    source: str  # "live" (Open-Meteo), "clear_sky" (forced) or "unavailable" (the fetch failed)
+    direct_wm2: float | None
+    cloud_cover: float | None  # 0-1
     rain_mm_h: float | None
 
 
@@ -79,67 +60,61 @@ class RouteResponse(BaseModel):
     when: str
     sun_avoidance: float
     w_rain: float
-    route_options: int  # how many time/shade trade-offs this trip has; the slider picks one
+    route_options: int  # time/shade trade-offs this trip has; sun_avoidance picks one
     weather: WeatherOut
     sun: SunOut
     origin: tuple[float, float]       # (lat, lon)
     destination: tuple[float, float]  # (lat, lon)
     fastest: RouteOut
-    contextroute: RouteOut
+    contextroute: RouteOut  # the Detour route
     extra_seconds: float
     sun_percent_change: float  # percentage points: contextroute - fastest
-    rain_percent_change: float  # percentage points: contextroute - fastest
+    rain_percent_change: float
 
-
-# --- state ------------------------------------------------------------------
 
 class State:
     data: CampusData
     base: ExposureModel
+    node_ids: list[int]
+    node_tree: shapely.STRtree  # graph nodes, for snapping pins
     origin: int
     dest: int
     models: dict[tuple[Date, bool], ExposureModel]
     options: dict[tuple, tuple[RouteResult, list[RouteResult]]]
     shadows: dict[int, bytes]  # /shadows response body per time slice
-    snaps: dict[tuple[float, float], int]  # (lat, lon) pin -> nearest graph node
 
 
 state = State()
 
 
+def _nearest_node(lat: float, lon: float) -> int:
+    x, y = _to_metric.transform(lon, lat)
+    return state.node_ids[int(state.node_tree.query_nearest(shapely.Point(x, y), all_matches=False)[0])]
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     state.data = load_campus()
-    first_day = datetime.now(TZ)
-    state.base = ExposureModel(state.data, SunSchedule(*CAMPUS_CENTER, first_day))
-    state.origin = nearest_node(state.data.graph, ORIGIN)
-    state.dest = nearest_node(state.data.graph, DEST)
-    state.models = {}
-    state.options = {}
-    state.shadows = {}
-    state.snaps = {}
+    nodes = state.data.graph.nodes
+    state.node_ids = list(nodes)
+    state.node_tree = shapely.STRtree(shapely.points([(nodes[n]["x"], nodes[n]["y"]) for n in state.node_ids]))
+    state.base = ExposureModel(state.data, SunSchedule(*CAMPUS_CENTER, datetime.now(TZ)))
+    state.origin, state.dest = _nearest_node(*ORIGIN), _nearest_node(*DEST)
+    state.models, state.options, state.shadows = {}, {}, {}
     yield
-
-
-def allowed_origins(env=os.environ) -> list[str]:
-    """Sites allowed to call the API: local dev, plus ALLOWED_ORIGINS (comma-separated,
-    e.g. the Vercel URL) when deployed."""
-    extra = [o.strip().rstrip("/") for o in env.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
-    return LOCAL_ORIGINS + extra
 
 
 app = FastAPI(title="Detour backend", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins(),
-    # Optional, e.g. https://detour-.*\.vercel\.app to also allow Vercel preview deployments.
+    # ALLOWED_ORIGINS: the deployed site(s), comma-separated; ALLOWED_ORIGIN_REGEX e.g. for Vercel previews.
+    allow_origins=LOCAL_ORIGINS + [o.strip().rstrip("/") for o in os.environ.get("ALLOWED_ORIGINS", "").split(",")
+                                   if o.strip()],
     allow_origin_regex=os.environ.get("ALLOWED_ORIGIN_REGEX") or None,
     allow_methods=["GET"],
     allow_headers=["*"],
 )
 
-
-# --- helpers ----------------------------------------------------------------
 
 def _parse_when(day: Date | None, clock: Time | None) -> datetime:
     now = datetime.now(TZ)
@@ -165,7 +140,7 @@ def _model_for(when: datetime, clear_sky: bool) -> ExposureModel:
 
 def _options_for(model: ExposureModel, origin: int, dest: int, when: datetime,
                  w_rain: float) -> tuple[RouteResult, list[RouteResult]]:
-    """(fastest route, shade options) for a trip, cached so moving the avoidance slider is instant."""
+    """(fastest route, shade options), cached so that moving only the avoidance slider is instant."""
     key = (model, origin, dest, when, w_rain)
     hit = state.options.get(key)
     if hit is None:
@@ -186,52 +161,32 @@ def _weather_out(model: ExposureModel, when: datetime, clear_sky: bool) -> Weath
                       rain_mm_h=round(rain, 1))
 
 
-def _snap(name: str, latlon: tuple[float, float]) -> int:
-    """Nearest walk-graph node to a (lat, lon), however far, or 422 if the point is off campus.
-
-    The walk graph is one strongly connected component, so any two snapped pins have a
-    route; the map draws a dotted line from each pin to where its route starts or ends.
-    """
-    x, y = _to_metric.transform(latlon[1], latlon[0])
-    if not shapely.contains_xy(state.data.campus, x, y):
+def _snap(name: str, lat: float, lon: float) -> int:
+    """Nearest graph node to a pin, however far (the map draws a dotted link); 422 off campus."""
+    if not shapely.contains_xy(state.data.campus, *_to_metric.transform(lon, lat)):
         raise HTTPException(422, f"{name} is outside York University's Keele Campus")
-    # Cached: every slider move resends the same pins, and nearest_node rebuilds a
-    # spatial index of the whole graph on each call.
-    node = state.snaps.get(latlon)
-    if node is None:
-        if len(state.snaps) >= MAX_CACHED_SNAPS:
-            state.snaps.clear()
-        node = state.snaps[latlon] = nearest_node(state.data.graph, latlon)
-    return node
-
-
-def _route_geometry(model: ExposureModel, result: RouteResult) -> dict:
-    coords: list[tuple[float, float]] = []
-    for ei in result.edges:
-        pts = list(model.edge_line(ei).coords)
-        coords.extend(pts if not coords else pts[1:])
-    if not coords:
-        # Both pins snapped to the same node: a zero-length line at that node, so the
-        # map can still draw the dotted links from each pin to the path.
-        nd = model.graph.nodes[result.nodes[0]]
-        coords = [(nd["x"], nd["y"])] * 2
-    return mapping(_to_wgs84(LineString(coords)))
+    return _nearest_node(lat, lon)
 
 
 def _route_out(model: ExposureModel, r: RouteResult) -> RouteOut:
+    coords: list[tuple[float, float]] = []
+    for ei in r.edges:
+        pts = list(model.edge_line(ei).coords)
+        coords.extend(pts if not coords else pts[1:])
+    if not coords:  # both pins snapped to one node: a zero-length line there keeps the dotted links
+        nd = model.graph.nodes[r.nodes[0]]
+        coords = [(nd["x"], nd["y"])] * 2
     return RouteOut(
         seconds=round(r.seconds, 1),
         distance_m=round(r.distance_m, 1),
         sun_percent=round(r.sun_percent, 1),
         sun_seconds=round(r.sun_seconds, 1),
         rain_percent=round(r.rain_percent, 1),
-        geometry=_route_geometry(model, r),
+        geometry=mapping(_to_wgs84(LineString(coords))),
     )
 
 
-# --- endpoints --------------------------------------------------------------
-
-# HEAD too: uptime monitors (e.g. UptimeRobot) check with HEAD and count a 405 as down.
+# HEAD too: uptime monitors check with HEAD and count a 405 as down.
 @app.api_route("/health", methods=["GET", "HEAD"])
 def health() -> dict:
     return {"status": "ok", "edges": len(state.base.edges), "buildings": len(state.data.buildings)}
@@ -261,8 +216,8 @@ def get_route(
         raise HTTPException(422, "give both lat and lon for each of from/to")
     origin = ORIGIN if from_lat is None else (from_lat, from_lon)
     dest = DEST if to_lat is None else (to_lat, to_lon)
-    origin_node = state.origin if from_lat is None else _snap("start", origin)
-    dest_node = state.dest if to_lat is None else _snap("end", dest)
+    origin_node = state.origin if from_lat is None else _snap("start", *origin)
+    dest_node = state.dest if to_lat is None else _snap("end", *dest)
     when = _parse_when(date, time)
     model = _model_for(when, clear_sky)
     try:
@@ -294,21 +249,17 @@ def get_shadows(
     date: Date | None = Query(None, description="YYYY-MM-DD (default: today)"),
     time: Time | None = Query(None, description="HH:MM, 24 h (default: now)"),
 ) -> Response:
-    """GeoJSON FeatureCollection of the building and tree shadows (no features at night).
-
-    One MultiPolygon of overlapping pieces, not their union: the union takes seconds
-    per time slice, the pieces milliseconds. Draw it with fill-rule nonzero (Leaflet:
-    fillRule: "nonzero") and it looks the same as the union.
-    """
+    """Building and tree shadows as one MultiPolygon of overlapping pieces (no features at night).
+    Draw it with fill-rule nonzero and it looks like their union, which would take seconds to compute."""
     when = _parse_when(date, time)
-    model = _model_for(when, clear_sky=True)  # shadow geometry doesn't depend on weather
+    model = _model_for(when, clear_sky=True)  # shadow geometry doesn't depend on the weather
     key = model.slice_index(when)
     body = state.shadows.get(key)
     if body is None:
         pieces = model.shadow_pieces_at(when)
         features = ""
         if len(pieces):
-            # 6 decimals of a degree is about 0.1 m, plenty for drawing and 40 % smaller.
+            # 6 decimals of a degree is about 0.1 m: plenty for drawing, and 40 % smaller.
             geometry = shapely.transform(_to_wgs84(shapely.multipolygons(pieces)), lambda c: np.round(c, 6))
             features = f'{{"type":"Feature","properties":{{}},"geometry":{shapely.to_geojson(geometry)}}}'
         body = f'{{"type":"FeatureCollection","features":[{features}]}}'.encode()

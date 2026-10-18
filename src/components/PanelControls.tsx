@@ -1,11 +1,10 @@
-// Presentation-only pieces of the route panel. Everything here formats or
-// displays values that CampusMap already has; no routing logic lives here.
+// Presentation-only pieces of the route panel: they format and display values CampusMap already has.
 import type { CSSProperties, ReactNode } from "react";
 
 import type { RouteStats } from "@/lib/route";
 
 // "1 min 19 sec", "45 sec", "2 min"
-export function fmtSpan(seconds: number) {
+function fmtSpan(seconds: number) {
   const s = Math.round(Math.abs(seconds));
   const m = Math.floor(s / 60);
   if (m === 0) return `${s} sec`;
@@ -83,7 +82,6 @@ function RouteSummary({
   delta?: string;
   showRain: boolean;
 }) {
-  const pct = (p: number) => Math.min(100, Math.max(0, Math.round(p)));
   return (
     <div className={`route-summary route-summary-${kind}`}>
       <p className="route-summary-name">
@@ -99,12 +97,12 @@ function RouteSummary({
         </div>
         <div>
           <dt>Sun</dt>
-          <dd>{pct(stats.sun_percent)}%</dd>
+          <dd>{Math.round(stats.sun_percent)}%</dd>
         </div>
         {showRain && (
           <div>
             <dt>Rain</dt>
-            <dd>{pct(stats.rain_percent)}%</dd>
+            <dd>{Math.round(stats.rain_percent)}%</dd>
           </div>
         )}
       </dl>
@@ -112,8 +110,7 @@ function RouteSummary({
   );
 }
 
-// Detour and Fastest side by side; Detour first and emphasised. The delta
-// line uses the backend's extra_seconds as-is.
+// Detour and Fastest side by side, Detour first; the delta line is the backend's extra_seconds.
 export function RoutePair({
   detour,
   fastest,

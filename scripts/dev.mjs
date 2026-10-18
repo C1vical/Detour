@@ -19,7 +19,7 @@ const services = [
 ];
 
 const children = services.map(({ name, color, cmd, args }) => {
-  // detached on POSIX gives each service its own process group, so killTree can stop it whole.
+  // Detached on POSIX: its own process group, so killTree can stop it whole.
   const child = spawn(cmd, args, {
     cwd: ROOT,
     env: { ...process.env, FORCE_COLOR: "1" },
@@ -38,8 +38,8 @@ const children = services.map(({ name, color, cmd, args }) => {
 
 console.log("Starting... open http://localhost:3000 (the backend takes a few seconds to load the campus).");
 
-// Both servers start worker processes of their own (uvicorn's reloader, Next's
-// server), so stop the whole tree or they keep holding the ports.
+// Both servers start child processes (uvicorn's reloader, Next's server); stop the whole tree,
+// or they keep holding the ports.
 function killTree(child) {
   if (child.exitCode !== null) return;
   try {

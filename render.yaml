@@ -1,13 +1,11 @@
-# Render Blueprint for the Python backend (the Next.js frontend goes on Vercel).
-# Render dashboard -> New -> Blueprint -> pick this repo. The Python version comes
-# from .python-version. See "Deploying" in README.md.
+# Render Blueprint for the Python backend (the frontend is on Vercel); see "Deploying" in README.md.
+# The Python version comes from .python-version.
 services:
   - type: web
     name: detour-api
     runtime: python
-    # free sleeps after 15 min without traffic (the next visit waits about a minute);
-    # 0.5c-512mb stays on. The backend uses about 280 MB once loaded and stays under
-    # about 380 MB with its caches full, so 512 MB is enough.
+    # free sleeps after 15 idle minutes (the next visit waits about a minute); 0.5c-512mb stays on.
+    # The backend uses about 280 MB loaded and under 380 MB with full caches.
     plan: free
     region: ohio
     buildCommand: pip install -r requirements.txt
