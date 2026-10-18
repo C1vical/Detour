@@ -1,14 +1,23 @@
+import Image from "next/image";
+
 import CampusMapLoader from "@/components/CampusMapLoader";
-import { LogoMark } from "@/components/PanelControls";
 
 export default function Home() {
   return (
     <main className="map-shell">
       <header className="map-header">
         <div className="brand">
-          <LogoMark />
           <div className="brand-text">
-            <h1>Detour</h1>
+            <h1 className="wordmark">
+              <Image
+                src="/detour-wordmark-transparent.png"
+                alt="Detour"
+                width={2048}
+                height={925}
+                sizes="120px"
+                preload
+              />
+            </h1>
             <p className="slogan">Walk the cool way.</p>
           </div>
         </div>

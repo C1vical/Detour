@@ -129,20 +129,3 @@ export function RoutePair({
     </div>
   );
 }
-
-export function LogoMark() {
-  return (
-    <svg className="logo-mark" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="17" cy="7" r="3.2" fill="currentColor" />
-      <path
-        d="M5 19V14C5 11.2 7.2 9 10 9H12"
-        fill="none"
-        stroke="#ffffff"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="5" cy="19" r="1.6" fill="#ffffff" />
-    </svg>
-  );
-}
