@@ -217,7 +217,8 @@ def _route_out(model: ExposureModel, r: RouteResult) -> RouteOut:
 
 # --- endpoints --------------------------------------------------------------
 
-@app.get("/health")
+# HEAD too: uptime monitors (e.g. UptimeRobot) check with HEAD and count a 405 as down.
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health() -> dict:
     return {"status": "ok", "edges": len(state.base.edges), "buildings": len(state.data.buildings)}
 

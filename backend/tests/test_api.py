@@ -19,6 +19,7 @@ def client():
 def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200 and r.json()["edges"] > 1000
+    assert client.head("/health").status_code == 200  # uptime monitors check with HEAD
 
 
 def test_route_shape_and_tradeoff(client):
