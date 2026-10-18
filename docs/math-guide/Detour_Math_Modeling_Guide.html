@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Detour Mathematical Modelling Guide</title>
+<style>
+  @page { size: Letter; margin: 15mm 15mm 17mm 15mm;
+    @bottom-right { content: counter(page); font: 8.5pt "Segoe UI", Arial, sans-serif; color: #8a8f98; }
+    @bottom-left { content: "Detour · Mathematical Modelling Guide"; font: 8.5pt "Segoe UI", Arial, sans-serif; color: #8a8f98; }
+  }
+  @page :first { @bottom-right { content: none; } @bottom-left { content: none; } }
+  :root { --ink:#1b1d21; --muted:#5d636d; --line:#dfe2e7; --green:#138a3e; --green-bg:#eaf6ee; --red:#e0161b;
+    --orange:#c8520f; --orange-bg:#fdf1e8; --slate:#2f3b4c; --blue:#1f5fbf; --blue-bg:#eaf1fc; --amber-bg:#fff7e0; --code-bg:#f5f6f8; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; font: 10pt/1.48 "Segoe UI", "Helvetica Neue", Arial, sans-serif; color: var(--ink); background: #fff; }
+  h1 { font-size: 21pt; margin: 0 0 4pt; letter-spacing: -0.3pt; }
+  h1 .num { color: var(--orange); font-weight: 700; margin-right: 8pt; }
+  h2 { font-size: 13pt; margin: 16pt 0 5pt; color: var(--ink); border-bottom: 1.5pt solid var(--line); padding-bottom: 2pt; break-after: avoid; }
+  h3 { font-size: 10.5pt; margin: 11pt 0 3pt; color: var(--slate); break-after: avoid; }
+  p { margin: 0 0 6pt; }
+  ul, ol { margin: 0 0 6pt; padding-left: 16pt; }
+  li { margin-bottom: 2pt; }
+  section.chapter { break-before: page; }
+  .lead { font-size: 11pt; color: var(--muted); margin-bottom: 10pt; }
+  code, .mono { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; font-size: 8.6pt; }
+  code { background: var(--code-bg); padding: 0 2.5pt; border-radius: 2pt; }
+  pre { background: var(--code-bg); border-left: 3pt solid var(--slate); padding: 6pt 9pt; margin: 4pt 0 8pt; font-size: 8.2pt; line-height: 1.38; white-space: pre-wrap; break-inside: avoid; border-radius: 2pt; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .file { font-size: 7.8pt; color: var(--muted); margin: 6pt 0 -2pt; font-family: Consolas, monospace; break-after: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 4pt 0 9pt; font-size: 9pt; break-inside: avoid; }
+  th { text-align: left; background: #eef0f3; font-weight: 600; padding: 3.5pt 6pt; border-bottom: 1pt solid #c9cdd4; }
+  td { padding: 3.5pt 6pt; border-bottom: 0.6pt solid var(--line); vertical-align: top; }
+  .box { border-radius: 4pt; padding: 7pt 10pt; margin: 6pt 0 9pt; break-inside: avoid; border-left: 4pt solid; }
+  .box .t { font-weight: 700; display: block; margin-bottom: 2pt; font-size: 9.5pt; text-transform: uppercase; letter-spacing: .4pt; }
+  .box p:last-child, .box ul:last-child { margin-bottom: 0; }
+  .key { background: var(--green-bg); border-color: var(--green); } .key .t { color: var(--green); }
+  .warn { background: var(--orange-bg); border-color: var(--orange); } .warn .t { color: var(--orange); }
+  .info { background: var(--blue-bg); border-color: var(--blue); } .info .t { color: var(--blue); }
+  .judge { background: var(--amber-bg); border-color: #c99a06; } .judge .t { color: #8a6a00; }
+  .eq { text-align: center; font-family: "Cambria Math", Cambria, Georgia, serif; font-size: 13pt; margin: 7pt 0 9pt; break-inside: avoid; }
+  .eq.sm { font-size: 11.5pt; }
+  .m { font-family: "Cambria Math", Cambria, Georgia, serif; font-style: italic; font-size: 10.5pt; }
+  .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 2pt; }
+  .frac > span:first-child { border-bottom: 1px solid currentColor; padding: 0 3pt; }
+  .frac > span:last-child { padding: 0 3pt; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; }
+  .grid2 > * { min-width: 0; }
+  figure { margin: 6pt 0 10pt; text-align: center; break-inside: avoid; }
+  figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 3pt; }
+  svg { max-width: 100%; height: auto; }
+  svg text { font-family: "Segoe UI", Arial, sans-serif; }
+  .pill { display: inline-block; padding: 0 5pt; border-radius: 8pt; font-size: 8pt; font-weight: 600; }
+  .p-green { background: var(--green-bg); color: var(--green); } .p-red { background: #fde8e8; color: #b21016; }
+  .p-grey { background: #eef0f3; color: var(--muted); } .p-orange { background: var(--orange-bg); color: var(--orange); }
+  .qa { break-inside: avoid; margin-bottom: 6.5pt; }
+  .qa .q { font-weight: 650; }
+  .qa .q::before { content: "Q" counter(q) ". "; counter-increment: q; color: var(--orange); }
+  .qa .a { margin-left: 0; color: #2b2f36; }
+  .qa-list { counter-reset: q; }
+  .qcat { font-size: 9pt; text-transform: uppercase; letter-spacing: .6pt; color: var(--blue); margin: 10pt 0 4pt; font-weight: 700; break-after: avoid; }
+  .script { border: 1pt solid var(--line); border-radius: 4pt; padding: 8pt 11pt; margin: 6pt 0 9pt; break-inside: avoid; }
+  .script .who { font-weight: 700; color: var(--slate); font-size: 9.5pt; text-transform: uppercase; letter-spacing: .4pt; }
+  .script .time { float: right; color: var(--muted); font-size: 8.5pt; }
+  .top10 li { margin-bottom: 6pt; }
+  .top10 b { color: var(--green); }
+  .toc { columns: 2; column-gap: 22pt; font-size: 10pt; }
+  .toc div { break-inside: avoid; padding: 2pt 0; border-bottom: 0.6pt dotted #cfd3d9; }
+  .toc span { color: var(--orange); font-weight: 700; display: inline-block; width: 20pt; }
+  /* cover */
+  .cover { display: flex; flex-direction: column; gap: 10pt; }
+  .cover-top { background: #1b1b1b; color: #fff; padding: 24pt 26pt 20pt; border-radius: 6pt; border-bottom: 5pt solid var(--orange); }
+  .cover-top .brand { font-size: 40pt; font-weight: 800; letter-spacing: -1pt; }
+  .cover-top .slogan { color: #ff7a2f; font-style: italic; font-size: 13pt; margin-top: -4pt; }
+  .cover-top .title { font-size: 20pt; margin-top: 22pt; font-weight: 600; }
+  .cover-top .sub { color: #c5c9cf; font-size: 11pt; margin-top: 4pt; }
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8pt; margin: 12pt 0; }
+  .stat { border: 1pt solid var(--line); border-radius: 4pt; padding: 7pt 9pt; }
+  .stat b { display: block; font-size: 16pt; color: var(--slate); }
+  .stat span { font-size: 8.5pt; color: var(--muted); }
+  .shot { width: 100%; height: 96mm; object-fit: cover; object-position: center top; border-radius: 4pt; border: 1pt solid var(--line); }
+  pre.long { break-inside: auto; }
+  .small { font-size: 8.6pt; color: var(--muted); }
+  .nobreak { break-inside: avoid; }
+</style>
+</head>
+<body>
+<!-- ============================== COVER ============================== -->
+<div class="cover">
+  <div class="cover-top">
+    <div class="brand">Detour</div>
+    <div class="slogan">Walk the cool way.</div>
+    <div class="title">Mathematical Modelling Guide</div>
+    <div class="sub">Every formula behind the backend, derived step by step and matched to the line of Python that computes it: coordinates, the sun, shadows, exposure integrals, graphs, A*, Pareto search and the avoidance slider.</div>
+  </div>
+  <div class="stat-row">
+    <div class="stat"><b>L = h / tan θ</b><span>shadow length</span></div>
+    <div class="stat"><b>∫ I (1 − f) dt</b><span>sun-seconds on a walkway</span></div>
+    <div class="stat"><b>g + h</b><span>A* search key</span></div>
+    <div class="stat"><b>Pareto</b><span>every time/sun trade-off</span></div>
+  </div>
+</div>
+
+<section class="chapter">
+  <h2>How to read this guide</h2>
+  <ul>
+    <li>Each chapter follows the data through the backend in the order the code uses it: <b>where → when → shadow → exposure → graph → search → answer</b>.</li>
+    <li>Every formula is followed by the code that computes it, with the file name above the snippet. Snippets are copied from the final code (comments may be shortened).</li>
+    <li><span class="pill p-green">Worked example</span> boxes use real numbers produced by running the code. <span class="pill p-orange">Model choice</span> boxes say where the model simplifies reality and why.</li>
+    <li>Chapter 14 is a one-page formula sheet for revision.</li>
+  </ul>
+  <h2>Contents</h2>
+  <div class="toc">
+    <div><span>1</span>The model in one page</div>
+    <div><span>2</span>Coordinates and projection</div>
+    <div><span>3</span>Where is the sun?</div>
+    <div><span>4</span>Shadow geometry</div>
+    <div><span>5</span>Which walkways are in shade?</div>
+    <div><span>6</span>Sun and rain intensity</div>
+    <div><span>7</span>Exposure integrals</div>
+    <div><span>8</span>The campus as a graph</div>
+    <div><span>9</span>Shortest paths: Dijkstra and A*</div>
+    <div><span>10</span>Two objectives: the Pareto set</div>
+    <div><span>11</span>The slider: choosing one route</div>
+    <div><span>12</span>From routes to numbers on screen</div>
+    <div><span>13</span>Assumptions and error budget</div>
+    <div><span>14</span>Formula sheet</div>
+  </div>
+</section>
+
+<!-- ============================== 1 ============================== -->
+<section class="chapter">
+  <h1><span class="num">1</span>The model in one page</h1>
+  <p class="lead">Question: for a walk across campus leaving at time t<sub>0</sub>, how long does each possible route take, and how much direct sun does it get? Then: which routes are worth showing, and which one matches the user's slider?</p>
+  <figure>
+    <svg viewBox="0 0 720 260" width="680">
+      <defs><marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2f3b4c"/></marker></defs>
+      <g font-size="11">
+        <rect x="10" y="20" width="150" height="50" rx="6" fill="#fff7e0" stroke="#c99a06"/><text x="85" y="41" text-anchor="middle" font-weight="700">date, time</text><text x="85" y="57" text-anchor="middle">sun.py: θ(t), α(t)</text>
+        <rect x="10" y="100" width="150" height="50" rx="6" fill="#fff7e0" stroke="#c99a06"/><text x="85" y="121" text-anchor="middle" font-weight="700">weather.py</text><text x="85" y="137" text-anchor="middle">direct W/m², rain mm/h</text>
+        <rect x="10" y="180" width="150" height="50" rx="6" fill="#f5f6f8" stroke="#8a8f98"/><text x="85" y="201" text-anchor="middle" font-weight="700">data.py</text><text x="85" y="217" text-anchor="middle">graph, buildings, trees</text>
+        <rect x="200" y="20" width="150" height="50" rx="6" fill="#eaf1fc" stroke="#1f5fbf"/><text x="275" y="41" text-anchor="middle" font-weight="700">shadow.py</text><text x="275" y="57" text-anchor="middle">L = h / tan θ</text>
+        <rect x="200" y="100" width="150" height="50" rx="6" fill="#eaf1fc" stroke="#1f5fbf"/><text x="275" y="121" text-anchor="middle" font-weight="700">exposure.py</text><text x="275" y="137" text-anchor="middle">I(t), R(t), f, g</text>
+        <rect x="390" y="60" width="150" height="50" rx="6" fill="#eaf1fc" stroke="#1f5fbf"/><text x="465" y="81" text-anchor="middle" font-weight="700">exposure.py</text><text x="465" y="97" text-anchor="middle">S<tspan font-size="8">e</tspan>, W<tspan font-size="8">e</tspan> per edge</text>
+        <rect x="390" y="150" width="150" height="50" rx="6" fill="#eaf6ee" stroke="#138a3e"/><text x="465" y="171" text-anchor="middle" font-weight="700">router.py</text><text x="465" y="187" text-anchor="middle">A* + Pareto search</text>
+        <rect x="570" y="150" width="140" height="50" rx="6" fill="#eaf6ee" stroke="#138a3e"/><text x="640" y="171" text-anchor="middle" font-weight="700">pick() → api.py</text><text x="640" y="187" text-anchor="middle">Detour + Fastest</text>
+      </g>
+      <g stroke="#2f3b4c" stroke-width="1.4" fill="none" marker-end="url(#m1)">
+        <line x1="160" y1="45" x2="198" y2="45"/><line x1="160" y1="125" x2="198" y2="125"/><line x1="160" y1="195" x2="198" y2="140"/>
+        <line x1="350" y1="45" x2="388" y2="80"/><line x1="350" y1="125" x2="388" y2="90"/>
+        <line x1="465" y1="110" x2="465" y2="148"/><line x1="160" y1="210" x2="388" y2="180"/><line x1="540" y1="175" x2="568" y2="175"/>
+        <line x1="275" y1="70" x2="275" y2="98"/>
+      </g>
+    </svg>
+    <figcaption>Figure 1. The modelling pipeline. Yellow = inputs from the world, blue = physics and geometry, green = optimisation.</figcaption>
+  </figure>
+
+  <h2>1.1 Notation used throughout</h2>
+  <table>
+    <tr><th style="width:16%">Symbol</th><th>Meaning</th><th style="width:20%">Unit</th><th style="width:22%">In code</th></tr>
+    <tr><td class="m">θ</td><td>sun elevation above the horizon</td><td>degrees</td><td><code>sun.elevation</code></td></tr>
+    <tr><td class="m">α</td><td>sun azimuth, clockwise from north</td><td>degrees</td><td><code>sun.azimuth</code></td></tr>
+    <tr><td class="m">h</td><td>height of a building or tree part</td><td>m</td><td><code>height_m</code></td></tr>
+    <tr><td class="m">L</td><td>horizontal shadow length</td><td>m</td><td><code>low</code>, <code>high</code>, <code>length</code></td></tr>
+    <tr><td class="m">e, d<sub>e</sub></td><td>a walkway edge and its length</td><td>m</td><td><code>EdgeRef.length</code></td></tr>
+    <tr><td class="m">v</td><td>walking speed</td><td>1.4 m/s</td><td><code>WALK_SPEED_MPS</code></td></tr>
+    <tr><td class="m">τ<sub>e</sub></td><td>time to walk edge e</td><td>s</td><td><code>traversal_seconds()</code></td></tr>
+    <tr><td class="m">f(e,t)</td><td>shade fraction of edge e at time t</td><td>0–1</td><td><code>shade_fractions()</code></td></tr>
+    <tr><td class="m">g(e)</td><td>shelter (roof) fraction of edge e</td><td>0–1</td><td><code>shelter</code></td></tr>
+    <tr><td class="m">I(t)</td><td>relative direct-sun intensity</td><td>0–1 (≈)</td><td><code>sun.intensity()</code></td></tr>
+    <tr><td class="m">R(t)</td><td>relative rain intensity</td><td>0–1</td><td><code>sun.rain()</code></td></tr>
+    <tr><td class="m">S<sub>e</sub>, W<sub>e</sub></td><td>sun-seconds and rain-seconds on edge e</td><td>s</td><td><code>sun_seconds()</code>, <code>rain_seconds()</code></td></tr>
+    <tr><td class="m">w<sub>r</sub></td><td>rain weight (0, or 10 with "Avoid rain")</td><td>s per rain-s</td><td><code>w_rain</code></td></tr>
+    <tr><td class="m">p</td><td>sun avoidance as a fraction</td><td>0–1</td><td><code>sun_avoidance / 100</code></td></tr>
+  </table>
+  <div class="box key"><span class="t">The two numbers every route gets</span><p>A route <i>P</i> is a list of edges. Its <b>time</b> is <span class="m">T(P) = Σ τ<sub>e</sub></span> and its <b>sun</b> is <span class="m">S(P) = Σ S<sub>e</sub>(t<sub>e</sub>)</span>, where t<sub>e</sub> is the moment you step onto edge e. Everything in chapters 2–7 exists to compute S<sub>e</sub>; chapters 8–11 decide which routes to show.</p></div>
+</section>
+
+<!-- ============================== 2 ============================== -->
+<section class="chapter">
+  <h1><span class="num">2</span>Coordinates and projection</h1>
+  <p class="lead">Latitude and longitude are angles on a sphere. Shadows and walking distances need metres. So all maths happens in a flat, metric map projection.</p>
+
+  <h2>2.1 Why degrees are not metres</h2>
+  <p>On the Earth (radius ≈ 6,371 km) one degree of latitude is always about 111.1 km. One degree of longitude shrinks towards the poles because the circles of latitude get smaller:</p>
+  <div class="eq">1° of longitude ≈ 111.32 km × cos φ</div>
+  <div class="box key"><span class="t">Worked example (campus, φ = 43.7735°)</span><p>111.32 × cos 43.7735° = <b>80.4 km</b> per degree of longitude, but 111.1 km per degree of latitude. Measuring distance directly in degrees would stretch north–south distances by 38 % compared with east–west ones. Shadows would point the wrong way and be the wrong length.</p></div>
+
+  <h2>2.2 UTM zone 17N</h2>
+  <p>The backend projects everything to <b>UTM zone 17N (EPSG:32617)</b>, a Transverse Mercator projection whose central meridian (81° W) passes close to Toronto. Within a zone, scale error is below 0.1 %, so over a 2 km campus x and y are true metres to within centimetres: <span class="m">x</span> = metres east, <span class="m">y</span> = metres north.</p>
+  <p class="file">backend/data.py and backend/api.py</p>
+<pre><code>METRIC_CRS = "EPSG:32617"
+_to_lonlat = Transformer.from_crs(METRIC_CRS, "EPSG:4326", always_xy=True)
+_to_metric = Transformer.from_crs("EPSG:4326", METRIC_CRS, always_xy=True)
+x, y = _to_metric.transform(lon, lat)   # always_xy: longitude (x) first, then latitude (y)</code></pre>
+  <p>With the projection, distance is ordinary Euclidean geometry:</p>
+  <div class="eq">|AB| = √( (x<sub>B</sub> − x<sub>A</sub>)² + (y<sub>B</sub> − y<sub>A</sub>)² )</div>
+  <p>That is exactly <code>math.hypot(dx, dy)</code>, used by the A* heuristic (chapter 9).</p>
+
+  <h2>2.3 Rounding the output</h2>
+  <p>Shadow polygons are sent back in degrees rounded to 6 decimals. How big is that error?</p>
+  <div class="eq sm">10<sup>−6</sup>° of latitude × 111,132 m/° ≈ <b>0.11 m</b></div>
+  <p class="file">backend/api.py, get_shadows()</p>
+<pre><code>geometry = shapely.transform(_to_wgs84(shapely.multipolygons(pieces)), lambda c: np.round(c, 6))</code></pre>
+  <p>A screen pixel at zoom 17 covers about 0.9 m on campus, so 0.11 m is invisible, while dropping digits makes the response about 40 % smaller.</p>
+
+  <h2>2.4 Snapping a pin: nearest neighbour</h2>
+  <p>A clicked point <span class="m">q</span> becomes the graph node that minimises Euclidean distance:</p>
+  <div class="eq">node(q) = argmin<sub>v ∈ V</sub> |q − v|</div>
+  <p>Checking all 1,804 nodes every time would work, but the backend builds an <b>STRtree</b> (a tree of bounding rectangles) once, so the search only looks at nearby rectangles: roughly <span class="m">O(log |V|)</span> instead of <span class="m">O(|V|)</span>.</p>
+  <p class="file">backend/api.py</p>
+<pre><code>state.node_tree = shapely.STRtree(shapely.points([(nodes[n]["x"], nodes[n]["y"]) for n in state.node_ids]))
+
+def _nearest_node(lat: float, lon: float) -&gt; int:
+    x, y = _to_metric.transform(lon, lat)
+    return state.node_ids[int(state.node_tree.query_nearest(shapely.Point(x, y), all_matches=False)[0])]</code></pre>
+  <p>Before snapping, <code>shapely.contains_xy(campus, x, y)</code> runs a point-in-polygon test (the same ray-casting idea the frontend uses): count how many polygon edges a ray from the point crosses; odd means inside.</p>
+</section>
+
+<!-- ============================== 3 ============================== -->
+<section class="chapter">
+  <h1><span class="num">3</span>Where is the sun?</h1>
+  <h2>3.1 Two angles describe the sun</h2>
+  <div class="grid2">
+  <div>
+  <ul>
+    <li><b>Elevation θ</b>: angle above the horizon (0° = horizon, 90° = overhead).</li>
+    <li><b>Azimuth α</b>: compass bearing, clockwise from north (90° east, 180° south, 270° west).</li>
+  </ul>
+  <p>The unit vector pointing <i>towards</i> the sun, in (east, north, up) coordinates, is</p>
+  <div class="eq sm">ŝ = ( cos θ sin α,&nbsp; cos θ cos α,&nbsp; sin θ )</div>
+  <p>Check: α = 180° (south) gives (0, −cos θ, sin θ): pointing south and up. ✔</p>
+  </div>
+  <figure style="margin-top:0">
+    <svg viewBox="0 0 300 210" width="290">
+      <line x1="20" y1="170" x2="290" y2="170" stroke="#1b1d21"/>
+      <circle cx="150" cy="170" r="4" fill="#1b1d21"/>
+      <line x1="150" y1="170" x2="255" y2="65" stroke="#c8520f" stroke-width="2"/>
+      <circle cx="260" cy="60" r="12" fill="#ffb02e" stroke="#c8520f"/>
+      <path d="M 200 170 A 50 50 0 0 0 185.4 134.6" fill="none" stroke="#1f5fbf" stroke-width="1.5"/>
+      <text x="205" y="155" font-size="13" fill="#1f5fbf" font-style="italic">θ</text>
+      <text x="150" y="195" text-anchor="middle" font-size="10">you</text>
+      <text x="30" y="160" font-size="10" fill="#5d636d">horizon</text>
+      <text x="150" y="20" text-anchor="middle" font-size="10" fill="#5d636d">α = direction along the horizon (compass)</text>
+    </svg>
+  </figure>
+  </div>
+
+  <h2>3.2 Where the angles come from (the textbook model)</h2>
+  <p>The code uses <b>pvlib</b>'s implementation of the NREL Solar Position Algorithm, accurate to about 0.0003°. It is long, but its core is the classic spherical-astronomy relation, worth knowing for judges:</p>
+  <div class="eq sm">δ ≈ 23.44° · sin( 360°/365 · (284 + n) ) &nbsp;&nbsp;&nbsp;(declination, n = day of year)</div>
+  <div class="eq sm">sin θ = sin φ · sin δ + cos φ · cos δ · cos H &nbsp;&nbsp;&nbsp;(φ = latitude, H = hour angle, 15° per hour from solar noon)</div>
+  <p>At solar noon H = 0, and the formula reduces to <span class="m">θ<sub>noon</sub> = 90° − φ + δ</span>.</p>
+  <table>
+    <tr><th>Day</th><th>δ</th><th>90° − φ + δ (by hand)</th><th>The code (pvlib)</th></tr>
+    <tr><td>21 June</td><td>+23.44°</td><td>90 − 43.77 + 23.44 = <b>69.67°</b></td><td>69.67° at 13:20 EDT</td></tr>
+    <tr><td>20 March</td><td>0°</td><td>90 − 43.77 = <b>46.23°</b></td><td>46.3° at 13:20 EDT</td></tr>
+    <tr><td>21 December</td><td>−23.44°</td><td>90 − 43.77 − 23.44 = <b>22.79°</b></td><td>22.8° at 12:15 EST</td></tr>
+  </table>
+  <div class="box info"><span class="t">Why is solar noon at 13:20 in June?</span><p>Clocks in summer run on EDT (UTC−4), an hour ahead of standard time, and Toronto sits 4.5° west of the EST meridian (75° W), which adds about 18 minutes (4 min per degree). The equation of time shifts it by a few more minutes.</p></div>
+  <p>pvlib returns the <b>apparent</b> elevation, which includes atmospheric refraction (light bends in air, so the sun looks slightly higher, most noticeably near the horizon).</p>
+  <p class="file">backend/sun.py</p>
+<pre><code>def sun_positions(lat, lon, times):
+    sp = solarposition.get_solarposition(times, lat, lon)
+    return sp[["apparent_elevation", "azimuth"]].rename(columns={"apparent_elevation": "elevation"})</code></pre>
+
+  <h2>3.3 A lookup table instead of recomputing</h2>
+  <p>The router asks for the sun thousands of times per search, so <code>SunSchedule</code> computes all 24 × 60 + 1 = <b>1,441</b> minutes of a day once and then interpolates. For a time <i>t</i> that is <i>m</i> minutes after midnight (m can be fractional), with <i>i</i> = ⌊m⌋:</p>
+  <div class="eq">value(t) = v<sub>i</sub> + (v<sub>i+1</sub> − v<sub>i</sub>) · (m − i)</div>
+  <p>This is linear interpolation: walk along the straight line between the two neighbouring minutes.</p>
+  <p class="file">backend/exposure.py, SunSchedule</p>
+<pre><code>times = pd.to_datetime([self.t0 + timedelta(minutes=i) for i in range(24 * 60 + 1)], utc=True)
+...
+def _interp(self, values, when):
+    m = min(max(self._minutes(when), 0.0), len(values) - 1.0)
+    i = min(int(m), len(values) - 2)
+    return float(values[i] + (values[i + 1] - values[i]) * (m - i))</code></pre>
+  <p>The sun position itself (used for shadows) is taken at the <b>nearest</b> minute: <code>i = round(m)</code>. In one minute the sun rises or sinks at most about 0.18° on campus, and around a summer noon its azimuth turns about 0.66°.</p>
+  <div class="box warn"><span class="t">Time zones</span><p>Times arrive as Toronto wall-clock time. The minute table is built in wall-clock minutes from local midnight and converted to UTC only for pvlib, so on the two daylight-saving days (23 h and 25 h days) the lookup still lines up.</p></div>
+</section>
+
+<!-- ============================== 4 ============================== -->
+<section class="chapter">
+  <h1><span class="num">4</span>Shadow geometry</h1>
+  <h2>4.1 Shadow of a single point</h2>
+  <div class="grid2">
+  <div>
+  <p>A point at height <i>h</i> blocks the sun ray that passes through it. That ray reaches the ground a horizontal distance <i>L</i> away, making a right-angled triangle with the vertical side <i>h</i>, the ground side <i>L</i> and the angle θ at the ground:</p>
+  <div class="eq">tan θ = <span class="frac"><span>opposite</span><span>adjacent</span></span> = <span class="frac"><span>h</span><span>L</span></span> &nbsp;⟹&nbsp; <b>L = <span class="frac"><span>h</span><span>tan θ</span></span></b></div>
+  </div>
+  <figure style="margin-top:0">
+    <svg viewBox="0 0 320 190" width="300">
+      <line x1="10" y1="160" x2="310" y2="160" stroke="#1b1d21"/>
+      <rect x="40" y="60" width="40" height="100" fill="#9aa3b0" stroke="#2f3b4c"/>
+      <rect x="80" y="155" width="180" height="5" fill="#2f3b4c" opacity=".55"/>
+      <line x1="80" y1="60" x2="260" y2="160" stroke="#c8520f" stroke-width="2" stroke-dasharray="5 3"/>
+      <path d="M 225 160 A 35 35 0 0 1 229.3 142.5" fill="none" stroke="#1f5fbf" stroke-width="1.5"/>
+      <text x="212" y="152" font-size="13" fill="#1f5fbf" font-style="italic">θ</text>
+      <text x="32" y="115" text-anchor="end" font-size="13" font-style="italic">h</text>
+      <text x="170" y="180" text-anchor="middle" font-size="13" font-style="italic">L</text>
+      <circle cx="292" cy="30" r="12" fill="#ffb02e" stroke="#c8520f"/>
+    </svg>
+  </figure>
+  </div>
+  <p>The shadow points <b>away</b> from the sun. The sun's horizontal direction is <span class="m">(sin α, cos α)</span> (east, north), so the shadow offset is the opposite vector scaled by L:</p>
+  <div class="eq">d = (Δx, Δy) = L · ( −sin α,&nbsp; −cos α )</div>
+  <table>
+    <tr><th>Sun</th><th>α</th><th>(−sin α, −cos α)</th><th>Shadow points</th></tr>
+    <tr><td>due south</td><td>180°</td><td>(0, +1)</td><td>north ✔</td></tr>
+    <tr><td>due east (morning)</td><td>90°</td><td>(−1, 0)</td><td>west ✔</td></tr>
+    <tr><td>due west (evening)</td><td>270°</td><td>(+1, 0)</td><td>east ✔</td></tr>
+  </table>
+  <p class="file">backend/shadow.py, ShadowCaster.pieces()</p>
+<pre><code>if sun.elevation &lt; MIN_ELEVATION_DEG:          # 3 degrees
+    return np.empty(0, dtype=object)
+tan_el = math.tan(math.radians(sun.elevation))  # trig needs radians: rad = deg × π / 180
+alpha = math.radians(sun.azimuth)
+direction = np.array([-math.sin(alpha), -math.cos(alpha)])
+high = np.minimum(self._cvx_h / tan_el, MAX_SHADOW_LENGTH_M)   # L = h / tan θ, capped at 300 m</code></pre>
+
+  <h2>4.2 Why there is a 3° cut-off and a 300 m cap</h2>
+  <p>As θ → 0, tan θ → 0 and L = h / tan θ → ∞. At θ = 3°, tan θ = 0.0524, so a 20 m building would cast a <b>382 m</b> shadow; any building taller than 300 × 0.0524 = <b>15.7 m</b> already hits the cap. Near sunrise and sunset the direct beam is also so weak (it passes through a lot of air) that shade barely matters, so the model stops there.</p>
+  <table>
+    <tr><th>θ</th><th>tan θ</th><th>20 m building</th><th>61.5 m (tallest on campus)</th></tr>
+    <tr><td>69.6° (June noon)</td><td>2.69</td><td>7.4 m</td><td>22.9 m</td></tr>
+    <tr><td>46.3° (equinox noon)</td><td>1.05</td><td>19.1 m</td><td>58.8 m</td></tr>
+    <tr><td>22.8° (December noon)</td><td>0.420</td><td>47.6 m</td><td>146.4 m</td></tr>
+    <tr><td>3° (cut-off)</td><td>0.052</td><td>381.6 m → 300 m</td><td>→ 300 m</td></tr>
+  </table>
+
+  <h2>4.3 Shadow of a building: sweeping a prism</h2>
+  <p>A building is modelled as a <b>prism</b>: its footprint polygon <i>P</i> extruded up to height <i>h</i>. A horizontal slice at height <i>z</i> (0 ≤ z ≤ h) casts a copy of <i>P</i> shifted by <span class="m">(z / tan θ) · u</span>, where u = (−sin α, −cos α). The whole shadow is the union of all those copies:</p>
+  <div class="eq">Shadow(P) = ⋃<sub>0 ≤ s ≤ 1</sub> ( P + s·d ), &nbsp;&nbsp; d = <span class="frac"><span>h</span><span>tan θ</span></span> · u</div>
+  <p>This "sweep of P along d" is called the <b>Minkowski sum</b> of P with the segment [0, d].</p>
+  <h3>Convex footprints: one convex hull</h3>
+  <p>If P is convex, the sweep equals the <b>convex hull</b> of P and its shifted copy P + d:</p>
+  <div class="eq sm">P ⊕ [0, d] = conv( P ∪ (P + d) )</div>
+  <p><i>Why:</i> every point of the sweep is p + s·d = (1 − s)·p + s·(p + d), a convex combination of a point of P and a point of P + d, so it lies in the hull. Conversely, any convex combination of points of P and P + d can be rewritten as (point of P) + s·d because P is convex. So both sets are equal.</p>
+  <p>The code treats a footprint as convex if it has no holes and fills at least 98 % of its own convex hull (<code>CONVEX_AREA_RATIO</code>), then computes all those hulls in one vectorised call:</p>
+  <p class="file">backend/shadow.py</p>
+<pre><code>both = np.concatenate([
+    self._cvx_xy + low[self._cvx_owner, None] * direction,    # every vertex shifted by the base offset
+    self._cvx_xy + high[self._cvx_owner, None] * direction,   # ... and by the top offset
+])
+idx = np.concatenate([self._cvx_owner, self._cvx_owner])
+order = np.argsort(idx, kind="stable")
+pieces.append(shapely.convex_hull(shapely.multipoints(both[order], indices=idx[order])))</code></pre>
+  <h3>Concave footprints: one parallelogram per wall</h3>
+  <p>For an L- or U-shaped building the hull would wrongly fill the courtyard. Instead each wall segment <span class="m">[a, b]</span> sweeps a parallelogram with corners a, b, b + d, a + d, and</p>
+  <div class="eq sm">Shadow(P) = P ∪ ⋃<sub>walls [a,b]</sub> parallelogram(a, b, b + d, a + d)</div>
+  <p><i>Why this covers everything:</i> take any shadow point x = p + s·d. Walk from p towards x. Either you never leave P (so x ∈ P), or you cross a wall at some point b' and the rest of the way is a fraction of d, so x lies in that wall's parallelogram.</p>
+<pre><code>length = np.minimum(self._h / tan_el, MAX_SHADOW_LENGTH_M)
+offset = length[:, None] * direction
+ring = np.stack([self._p1, self._p2, self._p2 + offset, self._p1 + offset, self._p1], axis=1)
+sweeps = shapely.polygons(ring)
+pieces.append(self._ccv_fp)                        # the footprint itself
+pieces.append(sweeps[shapely.area(sweeps) &gt; 0])    # walls parallel to the sun sweep no area</code></pre>
+
+  <h2>4.4 Trees: a floating disk</h2>
+  <p>Each tree is a crown: a disk of radius r = 3 m between heights b = 2 m (canopy base) and t = 9 m (top). Its slices from b to t give the convex sweep</p>
+  <div class="eq sm">Shadow(tree) = conv( D + (b / tan θ)·u &nbsp;∪&nbsp; D + (t / tan θ)·u )</div>
+  <p>The disk is drawn as a 12-sided polygon (<code>quad_segs=3</code>), which has <span class="m">(12 / 2π) · sin(2π/12) = 95.5 %</span> of the circle's area.</p>
+  <div class="box key"><span class="t">Derived fact: when is the ground under a tree shaded?</span><p>The point under the trunk is in shadow only if the lowest shadow disk still covers it, i.e. its centre is at most r away: <span class="m">b / tan θ ≤ r</span> ⟺ <span class="m">tan θ ≥ 2/3</span> ⟺ <b>θ ≥ 33.7°</b>. Below that the shade falls beside the tree, exactly like real trees in the evening.</p></div>
+
+  <h2>4.5 Drawing many overlapping pieces as one shape</h2>
+  <p>Merging thousands of pieces into one polygon (a union) takes seconds per time step. Instead every piece is <b>oriented</b> (outer rings counter-clockwise) and the browser fills with the <b>nonzero winding rule</b>: a point is filled if the sum of signed windings around it is not zero. Each piece containing the point adds +1, so a point inside any piece is filled exactly once. The picture equals the union without computing it.</p>
+<pre><code>return shapely.orient_polygons(self._slice_pieces(when))   # exposure.py, shadow_pieces_at()</code></pre>
+</section>
+
+<!-- ============================== 5 ============================== -->
+<section class="chapter">
+  <h1><span class="num">5</span>Which walkways are in shade?</h1>
+  <h2>5.1 The shade fraction</h2>
+  <p>The quantity we need is the fraction of an edge's length that lies in shadow:</p>
+  <div class="eq">f(e, t) = <span class="frac"><span>length( e ∩ shadow(t) )</span><span>length(e)</span></span></div>
+  <p>Computing that exactly for 5,172 edges against thousands of shadow polygons is slow, so the backend estimates it with <b>sample points</b>. Edge e of length ℓ gets</p>
+  <div class="eq sm">n<sub>e</sub> = max( 2, ⌈ ℓ / 1.5 m ⌉ ) &nbsp;&nbsp; points at positions &nbsp; (k + ½) / n<sub>e</sub> &nbsp;(k = 0 … n<sub>e</sub> − 1) of the way along</div>
+  <div class="eq">f(e, t) ≈ <span class="frac"><span>1</span><span>n<sub>e</sub></span></span> Σ<sub>k</sub> 𝟙[ point k is inside a shadow piece ]</div>
+  <p>This is the <b>midpoint rule</b> applied to the 0/1 "in shadow" function along the edge. Each shadow boundary that crosses the edge can be misplaced by at most half a spacing (0.75 m); in a whole-campus comparison at 9:00, 13:00 and 17:00 the length-weighted error was under 0.5 percentage points.</p>
+  <p class="file">backend/exposure.py, ExposureModel.__init__ (built once)</p>
+<pre><code>counts = np.maximum(2, np.ceil(shapely.length(self._lines) / SAMPLE_SPACING_M)).astype(int)
+self._sample_edge = np.repeat(np.arange(len(self._lines)), counts)            # which edge each point is on
+within = np.arange(counts.sum()) - np.repeat(np.cumsum(counts) - counts, counts)   # k for each point
+frac = (within + 0.5) / np.repeat(counts, counts)                            # (k + 1/2) / n
+self._samples = shapely.line_interpolate_point(self._lines[self._sample_edge], frac, normalized=True)
+self._sample_tree = shapely.STRtree(self._samples)</code></pre>
+  <p>Result: <b>121,632</b> fixed points. Per time step, one spatial query finds every point inside any piece, and <code>np.bincount</code> averages them per edge:</p>
+<pre><code>shaded[np.unique(self._sample_tree.query(pieces, predicate="intersects")[1])] = 1.0
+frac = self._per_edge(shaded)   # bincount(edge, weights=shaded) / counts  =  (1/n) Σ 1[in shadow]</code></pre>
+
+  <h2>5.2 Time slices</h2>
+  <p>Shadows move slowly, so they are computed once per 15-minute <b>slice</b> and reused. A time t (in seconds since 1970) belongs to slice</p>
+  <div class="eq">k = round( t / 900 ), &nbsp;&nbsp; slice time = 900 k</div>
+  <p>so t is never more than 7.5 minutes from its slice time. In 7.5 minutes the sun's elevation changes by at most about 1.4° (at 9:00 in June it rises 2.7° per 15 min), which moves a 20 m building's shadow edge by a metre or two at mid-morning.</p>
+<pre><code>def slice_index(self, when):
+    return int(round(when.timestamp() / SLICE_SECONDS))   # SLICE_SECONDS = 900</code></pre>
+  <p>Because slice k means the same instant for every date and weather, the shade fractions are cached by k and shared by all models (up to 192 slices = two days).</p>
+
+  <h2>5.3 Shelter from rain</h2>
+  <p>The shelter fraction g(e) uses the same sample points: the share inside a building footprint. If OpenStreetMap tags the walkway as roofed (<code>covered</code>, <code>indoor</code>, <code>tunnel</code>, <code>highway=corridor</code>), g is set to 1.</p>
+  <div class="eq">g(e) = <span class="frac"><span>1</span><span>n<sub>e</sub></span></span> Σ<sub>k</sub> 𝟙[ point k inside a building ] &nbsp;&nbsp; (or 1 if tagged as roofed)</div>
+  <p>364 directed edges have g &gt; 0.5. g does not change with time, so it is computed once at start-up.</p>
+</section>
+
+<!-- ============================== 6 ============================== -->
+<section class="chapter">
+  <h1><span class="num">6</span>Sun and rain intensity</h1>
+  <h2>6.1 What shade actually blocks</h2>
+  <p>Sunlight reaching the ground has two parts: the <b>direct beam</b> from the sun's disk, and <b>diffuse</b> light scattered by the sky and clouds. A shadow removes only the direct beam; diffuse light reaches you in the shade too. So the model's sun intensity is based on direct radiation only.</p>
+  <div class="eq">I(t) = <span class="frac"><span>direct radiation(t) [W/m²]</span><span>1000 W/m²</span></span></div>
+  <p>1000 W/m² is roughly the strongest direct beam at the ground on a clear day, so I ≈ 1 is "full sun" and I can very slightly exceed 1.</p>
+
+  <h2>6.2 Clear-sky fallback: Lambert's cosine law</h2>
+  <p>When no weather is available, the model assumes a clear sky with <span class="m">I(t) = max(0, sin θ(t))</span>. The reason is geometry: a beam of cross-section A hitting the flat ground at elevation θ spreads over an area A / sin θ, so the power per square metre of ground is multiplied by sin θ (Lambert's cosine law, with the zenith angle 90° − θ). Below the horizon there is no direct sun, hence the max(0, ·).</p>
+  <p class="file">backend/exposure.py, SunSchedule.__init__</p>
+<pre><code>if weather is None:
+    self._intensity = np.maximum(0.0, np.sin(np.radians(self.elevation)))
+    self._rain = np.zeros(len(times))
+else:
+    self._intensity = weather.direct / CLEAR_SKY_DIRECT_WM2   # 1000 W/m²
+    self._rain = rain_intensity(weather.rain)</code></pre>
+  <div class="box warn"><span class="t">Model choice</span><p>The fallback ignores the atmosphere's absorption (a low sun passes through more air and is dimmer than sin θ suggests). It only applies when live data is missing; with live weather the measured/forecast direct radiation already includes clouds and air mass.</p></div>
+
+  <h2>6.3 Turning hourly weather into minutes</h2>
+  <p>Open-Meteo gives one value per hour. Radiation and precipitation are <b>averages over the hour ending</b> at the timestamp, so each value is placed at the middle of its hour (−30 min) and the 1,441-minute table is filled by linear interpolation between those points:</p>
+  <div class="eq sm">y(m) = y<sub>j</sub> + (y<sub>j+1</sub> − y<sub>j</sub>) · <span class="frac"><span>m − m<sub>j</sub></span><span>m<sub>j+1</sub> − m<sub>j</sub></span></span>, &nbsp;&nbsp; m<sub>j</sub> = 60 j − 30</div>
+  <p class="file">backend/weather.py, DayWeather.from_hourly()</p>
+<pre><code>minutes = np.arange(24 * 60 + 1)
+at_hour = np.arange(24) * 60.0
+mid_hour = at_hour - 30.0  # radiation and precipitation are averages over the preceding hour
+return cls(
+    direct=np.interp(minutes, mid_hour, values["direct_radiation"]),
+    cloud=np.interp(minutes, at_hour, values["cloud_cover"] / 100.0),
+    rain=np.interp(minutes, mid_hour, values["precipitation"]),
+)</code></pre>
+  <p>Cloud cover is an instantaneous value, so it stays at the hour; it is only shown to the user. Clouds still change the route, through lower direct radiation.</p>
+
+  <h2>6.4 Rain intensity</h2>
+  <div class="eq">R(t) = min( 1, <span class="frac"><span>rain(t) [mm/h]</span><span>4 mm/h</span></span> )</div>
+  <p>4 mm/h is "moderate rain"; anything heavier counts as fully wet (R = 1). Light drizzle of 1 mm/h gives R = 0.25.</p>
+<pre><code>def rain_intensity(rain_mm_h):
+    return np.minimum(1.0, np.asarray(rain_mm_h) / 4.0)</code></pre>
+</section>
+
+<!-- ============================== 7 ============================== -->
+<section class="chapter">
+  <h1><span class="num">7</span>Exposure integrals</h1>
+  <h2>7.1 Time on an edge</h2>
+  <div class="eq">τ<sub>e</sub> = <span class="frac"><span>d<sub>e</sub></span><span>v</span></span>, &nbsp;&nbsp; v = 1.4 m/s (≈ 5 km/h)</div>
+<pre><code>def traversal_seconds(self, edge):
+    return self.edges[edge].length / WALK_SPEED_MPS</code></pre>
+
+  <h2>7.2 Sun-seconds: an integral over the walk</h2>
+  <p>If you step onto edge e at time t<sub>e</sub>, you are on it from t<sub>e</sub> to t<sub>e</sub> + τ<sub>e</sub>. At each instant you receive sun intensity I(t), except on the shaded fraction f of the edge. Adding it up over time:</p>
+  <div class="eq">S<sub>e</sub>(t<sub>e</sub>) = ∫<sub>t<sub>e</sub></sub><sup>t<sub>e</sub> + τ<sub>e</sub></sup> I(t) · (1 − f) dt</div>
+  <p>The unit is <b>sun-seconds</b>: one second in full direct sun. Two seconds at half intensity is also one sun-second. f is taken from the time slice at the moment you enter the edge (edges take seconds, slices last 15 minutes).</p>
+
+  <h2>7.3 The trapezoid rule</h2>
+  <p>The integral is approximated by the average of the start and end values times the duration:</p>
+  <div class="eq">∫<sub>a</sub><sup>b</sup> I(t) dt ≈ (b − a) · <span class="frac"><span>I(a) + I(b)</span><span>2</span></span></div>
+  <div class="eq sm">S<sub>e</sub> ≈ τ<sub>e</sub> · <span class="frac"><span>I(t<sub>e</sub>) + I(t<sub>e</sub> + τ<sub>e</sub>)</span><span>2</span></span> · (1 − f)</div>
+  <p class="file">backend/exposure.py</p>
+<pre><code>def _trapezoid(self, edge, enter, rate):
+    tau = self.traversal_seconds(edge)
+    return tau * 0.5 * (rate(enter) + rate(enter + timedelta(seconds=tau)))
+
+def sun_seconds(self, edge, enter):
+    return (1.0 - self.shade_fractions(enter)[edge]) * self.full_sun_seconds(edge, enter)
+
+def full_sun_seconds(self, edge, enter):          # same integral with f = 0
+    return self._trapezoid(edge, enter, self.sun.intensity)</code></pre>
+  <div class="box key"><span class="t">How accurate is the trapezoid rule here?</span><p>The error is <span class="m">−(b − a)³ / 12 · I''(ξ)</span> for some ξ in the interval. Clear-sky intensity varies with the Earth's rotation, ω = 2π / 86,400 s ≈ 7.3 × 10<sup>−5</sup> rad/s, so |I''| ≤ ω² ≈ 5.3 × 10<sup>−9</sup> s<sup>−2</sup>. For a 60-second edge the error is at most 60³ / 12 × 5.3 × 10<sup>−9</sup> ≈ <b>0.0001 sun-seconds</b>. With live weather, I is piecewise linear in minutes, and the trapezoid rule is exact on every straight piece.</p></div>
+  <div class="box key"><span class="t">Worked example</span><p>A 14 m edge: τ = 14 / 1.4 = 10 s. I = 0.80 when you enter, 0.82 when you leave; f = 0.25.<br>S = 10 × (0.80 + 0.82) / 2 × (1 − 0.25) = 10 × 0.81 × 0.75 = <b>6.08 sun-seconds</b>. With no shade it would be 8.10.</p></div>
+
+  <h2>7.4 Rain-seconds</h2>
+  <p>Exactly the same idea, with rain intensity and shelter instead of sun and shade:</p>
+  <div class="eq">W<sub>e</sub>(t<sub>e</sub>) = ∫ R(t) · (1 − g(e)) dt ≈ τ<sub>e</sub> · <span class="frac"><span>R(t<sub>e</sub>) + R(t<sub>e</sub> + τ<sub>e</sub>)</span><span>2</span></span> · (1 − g(e))</div>
+<pre><code>def rain_seconds(self, edge, enter):
+    return (1.0 - self.shelter[edge]) * self.full_rain_seconds(edge, enter)</code></pre>
+
+  <h2>7.5 Adding up a route</h2>
+  <p>For a route of edges e<sub>1</sub> … e<sub>k</sub> leaving at t<sub>0</sub>, each edge is entered when the previous ones are done:</p>
+  <div class="eq sm">t<sub>e<sub>1</sub></sub> = t<sub>0</sub>, &nbsp;&nbsp; t<sub>e<sub>j+1</sub></sub> = t<sub>e<sub>j</sub></sub> + τ<sub>e<sub>j</sub></sub> &nbsp;&nbsp;&nbsp; T = Σ τ<sub>e</sub> &nbsp;&nbsp; S = Σ S<sub>e</sub>(t<sub>e</sub>) &nbsp;&nbsp; S<sub>open</sub> = Σ S<sub>e</sub> with f = 0</div>
+  <div class="eq"><b>sun % = 100 · S / S<sub>open</sub></b> &nbsp;&nbsp; (0 if S<sub>open</sub> = 0)</div>
+  <p class="file">backend/router.py, _summarise()</p>
+<pre><code>t = 0.0
+for ei in edges:
+    enter = start + timedelta(seconds=t)
+    sun += model.sun_seconds(ei, enter)
+    full_sun += model.full_sun_seconds(ei, enter)
+    rain += model.rain_seconds(ei, enter)
+    full_rain += model.full_rain_seconds(ei, enter)
+    dist += model.edges[ei].length
+    t += model.traversal_seconds(ei)</code></pre>
+  <div class="box info"><span class="t">What sun % really measures</span><p>Sun % compares the route with <i>the same route if nothing cast a shadow</i>. If the intensity were constant during the walk it would cancel out, and sun % = time-weighted share of the walk spent unshaded. It measures shade, not weather: a cloudy day lowers S and S<sub>open</sub> together. Example: the demo trip's fastest route has S = 961.3 and sun % = 88.5 %, so S<sub>open</sub> = 961.3 / 0.885 ≈ 1,086 sun-seconds.</p></div>
+</section>
+
+<!-- ============================== 8 ============================== -->
+<section class="chapter">
+  <h1><span class="num">8</span>The campus as a graph</h1>
+  <div class="eq">G = (V, E), &nbsp;&nbsp; |V| = 1,804 nodes, &nbsp; |E| = 5,172 directed edges</div>
+  <ul>
+    <li><b>Nodes</b> are walkway junctions and dead ends, each with metric coordinates (x, y).</li>
+    <li><b>Edges</b> are walkway segments. Every walkway appears twice (u → v and v → u), because exposure depends on which end you start from and when.</li>
+    <li>It is a <b>multigraph</b>: two nodes can be joined by several different paths, told apart by a key (0, 1, …). An edge is identified by (u, v, key).</li>
+    <li>It is <b>strongly connected</b>: from every node you can reach every other. That is why any two on-campus pins always have a route.</li>
+  </ul>
+  <p class="file">backend/exposure.py: numbering the edges</p>
+<pre><code>for u, v, k, a in data.graph.edges(keys=True, data=True):
+    self.edge_index[(u, v, k)] = len(self.edges)
+    self.edges.append(EdgeRef(u, v, float(a["length"])))</code></pre>
+
+  <h2>8.1 Edge cost</h2>
+  <p>The router minimises a cost per edge that depends on when you step onto it:</p>
+  <div class="eq">c<sub>e</sub>(t) = τ<sub>e</sub> + w<sub>r</sub> · W<sub>e</sub>(t)</div>
+  <p>Both terms are seconds, so <span class="m">w<sub>r</sub></span> reads as "how many seconds of extra walking is one rain-second worth?" With "Avoid rain" off, w<sub>r</sub> = 0 and the cost is pure walking time. With it on, w<sub>r</sub> = 10.</p>
+  <div class="box key"><span class="t">Worked example: avoiding rain</span><p>2 mm/h rain → R = 0.5. Open 30 s edge: W = 30 × 0.5 = 15 rain-seconds, cost = 30 + 10 × 15 = <b>180</b>. A covered 45 s corridor (g = 1): W = 0, cost = <b>45</b>. The corridor wins even though it is 15 s longer.</p></div>
+  <p>Sun is <b>not</b> part of this cost. It is kept as a separate second objective (chapter 10).</p>
+
+  <h2>8.2 Time-dependent costs</h2>
+  <p>Because S<sub>e</sub> and W<sub>e</sub> depend on the entry time, this is a <b>time-dependent shortest-path problem</b>. Each search label carries its own arrival time: <span class="m">t<sub>v</sub> = t<sub>u</sub> + τ<sub>uv</sub></span>. Settling nodes in cost order (as Dijkstra does) is exact if arriving earlier never makes the rest of the walk costlier (the "FIFO" property). Over a walk of minutes the weather and sun change very little, so the error is negligible.</p>
+</section>
+
+<!-- ============================== 9 ============================== -->
+<section class="chapter">
+  <h1><span class="num">9</span>Shortest paths: Dijkstra and A*</h1>
+  <h2>9.1 Dijkstra's algorithm</h2>
+  <p>Keep a priority queue (a binary heap) of nodes ordered by <span class="m">g(n)</span>, the best cost found so far from the origin. Repeatedly remove the cheapest node u and <b>relax</b> each outgoing edge:</p>
+  <div class="eq">if g(u) + c(u, v) &lt; g(v): &nbsp;&nbsp; g(v) ← g(u) + c(u, v), &nbsp; parent(v) ← u</div>
+  <p>With non-negative costs, the first time a node is removed its g is optimal. Following parents back from the destination gives the route. Cost: <span class="m">O((|V| + |E|) log |V|)</span> with a binary heap.</p>
+
+  <h2>9.2 A*: add a lower bound</h2>
+  <p>A* orders the heap by <span class="m">f(n) = g(n) + h(n)</span>, where h(n) never overestimates the remaining cost. Detour uses straight-line walking time with a small slack:</p>
+  <div class="eq">h(n) = 0.99 · <span class="frac"><span>|n − goal|</span><span>1.4 m/s</span></span></div>
+  <p class="file">backend/router.py</p>
+<pre><code>def _heuristic(model, dest):
+    nodes = model.graph.nodes
+    gx, gy = nodes[dest]["x"], nodes[dest]["y"]
+    scale = HEURISTIC_SLACK / WALK_SPEED_MPS           # 0.99 / 1.4
+    return lambda n: scale * math.hypot(nodes[n]["x"] - gx, nodes[n]["y"] - gy)</code></pre>
+
+  <h2>9.3 Proof that h is consistent</h2>
+  <p>A heuristic is <b>consistent</b> if <span class="m">h(u) ≤ c(u, v) + h(v)</span> for every edge. Then A* settles exactly the nodes Dijkstra would, in a better order, and returns the same optimal cost.</p>
+  <ol>
+    <li>Every edge costs at least its walking time, since the rain term is ≥ 0: <span class="m">c(u, v) ≥ d<sub>uv</sub> / 1.4</span>.</li>
+    <li>On the campus graph every edge is at least 0.9975 times the straight line between its ends (OSM lengths can be a hair short), so <span class="m">d<sub>uv</sub> ≥ 0.9975 |uv| ≥ 0.99 |uv|</span>.</li>
+    <li>Triangle inequality: <span class="m">|u − goal| ≤ |uv| + |v − goal|</span>.</li>
+  </ol>
+  <div class="eq sm">h(u) = <span class="frac"><span>0.99 |u − goal|</span><span>1.4</span></span> ≤ <span class="frac"><span>0.99 |uv|</span><span>1.4</span></span> + <span class="frac"><span>0.99 |v − goal|</span><span>1.4</span></span> ≤ c(u, v) + h(v) &nbsp; ✔</div>
+  <p>That is why the slack is 0.99 and not 1: with 1.0, step 2 could fail by a fraction of a percent. Measured benefit on the demo trip: A* settled <b>876</b> nodes, Dijkstra <b>1,703</b>.</p>
+
+  <h2>9.4 The search loop in code</h2>
+<pre><code>heap = [(heuristic(origin), 0.0, next(counter), origin)]       # (f, g, tie-breaker, node)
+while heap:
+    _, cost_u, _, u = heapq.heappop(heap)
+    if cost_u != best.get(u):          # an outdated entry: a cheaper one was pushed later
+        continue
+    if u == dest:
+        break
+    t_u = start + timedelta(seconds=elapsed[u])                # arrival time at u
+    for v, parallel in g[u].items():
+        for key in parallel:
+            ei = model.edge_index[(u, v, key)]
+            tau = model.traversal_seconds(ei)
+            c = best[u] + tau
+            if w_rain:
+                c += w_rain * model.rain_seconds(ei, t_u)
+            if c &lt; best.get(v, math.inf):                     # relax
+                best[v] = c
+                came[v] = (u, ei)
+                elapsed[v] = elapsed[u] + tau
+                heapq.heappush(heap, (c + heuristic(v), c, next(counter), v))</code></pre>
+  <p>Instead of a "decrease key" operation, a node is simply pushed again with its new cost; old entries are skipped when popped (the <code>cost_u != best.get(u)</code> check). The counter breaks ties so Python never has to compare two nodes.</p>
+</section>
+
+<!-- ============================== 10 ============================== -->
+<section class="chapter">
+  <h1><span class="num">10</span>Two objectives: the Pareto set</h1>
+  <h2>10.1 Dominance</h2>
+  <p>Each route has two numbers to make small: cost C (walking time, plus rain if weighted) and sun S. Route A <b>dominates</b> route B if it is at least as good on both and strictly better on one:</p>
+  <div class="eq sm">A ≺ B &nbsp;⟺&nbsp; C<sub>A</sub> ≤ C<sub>B</sub>, &nbsp; S<sub>A</sub> ≤ S<sub>B</sub>, &nbsp; and at least one strictly</div>
+  <p>The <b>Pareto set</b> is all routes no other route dominates. Sorted by cost, its sun values strictly decrease: each option costs more and gets less sun than the one before. Every sensible "time for shade" trade lies in this set.</p>
+
+  <h2>10.2 Why not one weighted cost?</h2>
+  <p>The obvious idea is to minimise <span class="m">C + w<sub>s</sub> · S</span> for a sun weight w<sub>s</sub>. Geometrically, that slides a straight line of slope −1/w<sub>s</sub> across the (C, S) plot until it touches a route. It can only touch routes on the <b>lower convex hull</b>. A route in a "dent" of the trade-off curve is never chosen for any w<sub>s</sub>.</p>
+  <div class="grid2">
+  <div>
+  <div class="box key" style="margin-top:0"><span class="t">Example</span><p>Three routes (C, S): A = (100, 100), B = (110, 85), D = (120, 40). B is Pareto-optimal (nothing beats it on both). But for any w<sub>s</sub>:<br>
+  A: 100 + 100 w, &nbsp; B: 110 + 85 w, &nbsp; D: 120 + 40 w.<br>
+  B beats A only if w &gt; 0.67, and beats D only if w &lt; 0.22. Impossible at once, so a weighted sum <b>never</b> picks B, and the route jumps straight from A to D.</p></div>
+  </div>
+  <figure style="margin-top:0">
+    <svg viewBox="0 0 300 200" width="280">
+      <line x1="40" y1="170" x2="290" y2="170" stroke="#1b1d21"/><line x1="40" y1="170" x2="40" y2="10" stroke="#1b1d21"/>
+      <text x="165" y="192" text-anchor="middle" font-size="10">cost C</text><text x="14" y="90" font-size="10" transform="rotate(-90 14 90)" text-anchor="middle">sun S</text>
+      <line x1="60" y1="30" x2="260" y2="150" stroke="#c8520f" stroke-dasharray="4 3"/>
+      <circle cx="60" cy="30" r="5" fill="#e0161b"/><text x="70" y="28" font-size="10">A</text>
+      <circle cx="160" cy="57" r="5" fill="#138a3e"/><text x="168" y="54" font-size="10">B (in a dent)</text>
+      <circle cx="260" cy="150" r="5" fill="#138a3e"/><text x="250" y="140" font-size="10" text-anchor="end">D</text>
+      <text x="150" y="115" font-size="9" fill="#c8520f">convex hull</text>
+    </svg>
+    <figcaption>Figure 2. B lies above the hull line A–D, so no weight selects it.</figcaption>
+  </figure>
+  </div>
+
+  <h2>10.3 Martins' label-setting algorithm</h2>
+  <p>To find the whole set, the search keeps <b>labels</b> instead of one best value per node. A label is a partial route ending at a node: (cost so far, sun so far, time walked, parent label). Labels are popped in order of <span class="m">cost + h(node)</span> (A* keys again). At each node the algorithm remembers the least sun of any label kept there.</p>
+  <ul>
+    <li>A label is <b>kept</b> only if its sun is lower than every label kept at that node so far. Since labels arrive in cost order, a kept label is cheaper than later ones and shadier than earlier ones: never dominated.</li>
+    <li>It is also discarded if it has more sun than an option already found at the destination (that option is cheaper and shadier).</li>
+    <li>Every label reaching the destination is a new Pareto option.</li>
+  </ul>
+  <p class="file">backend/router.py, shade_options()</p>
+<pre><code>while heap:
+    _, cost, sun, elapsed, _, u, parent, edge = heapq.heappop(heap)
+    # dominated by a label kept here, or by an option already found (which is cheaper)
+    if sun &gt; least_sun.get(u, math.inf) - step or sun &gt; least_sun.get(dest, math.inf) - step:
+        continue
+    least_sun[u] = sun
+    labels.append((parent, edge))
+    if u == dest:
+        found.append((len(labels) - 1, cost))
+        continue
+    ...
+            c = cost + tau + (w_rain * model.rain_seconds(ei, t_u) if w_rain else 0.0)
+            if c + h(v) &gt; cap:                 # even a perfect straight walk would exceed the cap
+                continue
+            s = sun + model.sun_seconds(ei, t_u)
+            if s &lt;= least_sun.get(v, math.inf) - step:
+                heapq.heappush(heap, (c + h(v), c, s, elapsed + tau, next(counter), v, len(labels) - 1, ei))</code></pre>
+
+  <h2>10.4 Two limits keep the set small and useful</h2>
+  <div class="eq sm">cap = C<sub>quickest</sub> · (1 + 0.5) &nbsp;&nbsp;&nbsp;&nbsp; step = max( 1, 0.02 · S<sub>quickest</sub> )</div>
+  <ul>
+    <li><b>Cost cap</b> (<code>MAX_DETOUR = 0.5</code>): no option may cost more than 1.5 × the quickest. Pruning with <span class="m">c + h(v) &gt; cap</span> is safe because h is a lower bound: if even the straight-line remainder exceeds the cap, every real continuation does too.</li>
+    <li><b>Sun step</b> (<code>SUN_STEP = 0.02</code>): a new label must beat the previous least sun by at least 2 % of the quickest route's sun (and 1 sun-second). This is <b>ε-dominance</b>: routes that differ by a sliver of shade are treated as the same, so the list has a handful of meaningfully different routes instead of hundreds.</li>
+  </ul>
+  <div class="box key"><span class="t">Worked example: the demo trip (21 June 14:00, clear sky)</span>
+    <table style="margin:2pt 0 0">
+      <tr><th>Option</th><th>Time (s)</th><th>Sun-s</th><th>Sun %</th></tr>
+      <tr><td>1 (quickest)</td><td>1177.7</td><td>961.3</td><td>88.5</td></tr>
+      <tr><td>2</td><td>1182.2</td><td>927.2</td><td>85.1</td></tr>
+      <tr><td>3</td><td>1188.7</td><td>896.6</td><td>81.8</td></tr>
+      <tr><td>4</td><td>1189.1</td><td>856.0</td><td>78.1</td></tr>
+      <tr><td>5</td><td>1219.2</td><td>827.7</td><td>73.7</td></tr>
+      <tr><td>6</td><td>1225.7</td><td>797.1</td><td>70.6</td></tr>
+      <tr><td>7</td><td>1226.1</td><td>756.5</td><td>67.0</td></tr>
+      <tr><td>8</td><td>1310.7</td><td>725.6</td><td>60.1</td></tr>
+      <tr><td>9 (shadiest)</td><td>1477.9</td><td>690.5</td><td>50.8</td></tr>
+    </table>
+    <p>Here step = max(1, 0.02 × 961.3) = 19.2 sun-seconds and cap = 1.5 × 1177.7 = 1766.6 s. Each option is slower and shadier than the one above.</p>
+  </div>
+</section>
+
+<!-- ============================== 11 ============================== -->
+<section class="chapter">
+  <h1><span class="num">11</span>The slider: choosing one route</h1>
+  <p>The slider value p ∈ [0, 1] (the UI's 0–100 % divided by 100) means "avoid at least a fraction p of the sun that <i>can</i> be avoided on this trip". With S<sub>1</sub> the quickest option's sun and S<sub>k</sub> the shadiest's:</p>
+  <div class="eq">target = S<sub>1</sub> − p · (S<sub>1</sub> − S<sub>k</sub>)</div>
+  <div class="eq sm">Detour = the first (quickest) option with S ≤ target</div>
+  <p class="file">backend/router.py</p>
+<pre><code>def pick(options, avoidance):
+    most, least = options[0].sun_seconds, options[-1].sun_seconds
+    target = most - avoidance * (most - least)
+    return next(r for r in options if r.sun_seconds &lt;= target + 1e-9)</code></pre>
+  <ul>
+    <li>p = 0 → target = S<sub>1</sub> → the quickest option. p = 1 → target = S<sub>k</sub> → the shadiest.</li>
+    <li>As p grows the target falls, so the chosen route can only get shadier and slower: the slider is <b>monotonic</b>.</li>
+    <li>The <code>1e-9</code> absorbs floating-point rounding so that p = 1 always finds the last option.</li>
+  </ul>
+  <div class="box key"><span class="t">Worked example: demo trip at 50 %</span><p>target = 961.3 − 0.5 × (961.3 − 690.5) = 961.3 − 135.4 = <b>825.9</b>. Options 1–5 have more sun than that; option 6 (797.1) is the first below. Result: <b>1225.7 s</b> instead of 1177.7 s (+48 s), sun 88.5 % → 70.6 %.</p></div>
+  <div class="box info"><span class="t">Why this is fast</span><p>The options depend on the trip, time and rain weight, not on p. They are cached, so moving the slider only re-runs <code>pick()</code>: a few comparisons on a list of about 1–12 routes.</p></div>
+
+  <h2>11.1 The Fastest route</h2>
+  <p>The red "Fastest" line is always <code>route(model, origin, dest, when)</code> with w<sub>r</sub> = 0: pure walking time, whatever the settings. The Detour route comes from <code>pick()</code>. The difference shown in the panel is</p>
+  <div class="eq sm">extra_seconds = T<sub>Detour</sub> − T<sub>Fastest</sub>, &nbsp;&nbsp; sun_percent_change = sun %<sub>Detour</sub> − sun %<sub>Fastest</sub> (percentage points)</div>
+</section>
+
+<!-- ============================== 12 ============================== -->
+<section class="chapter">
+  <h1><span class="num">12</span>From routes to numbers on screen</h1>
+  <h2>12.1 Rounding and units in the response</h2>
+  <table>
+    <tr><th>Field</th><th>Formula</th><th>Rounding</th><th>Unit</th></tr>
+    <tr><td><code>seconds</code></td><td>T = Σ τ<sub>e</sub></td><td>0.1 s</td><td>s</td></tr>
+    <tr><td><code>distance_m</code></td><td>Σ d<sub>e</sub></td><td>0.1 m</td><td>m</td></tr>
+    <tr><td><code>sun_percent</code></td><td>100 · S / S<sub>open</sub></td><td>0.1</td><td>% (already ×100)</td></tr>
+    <tr><td><code>rain_percent</code></td><td>100 · W / W<sub>open</sub></td><td>0.1</td><td>%</td></tr>
+    <tr><td><code>sun.elevation_deg</code></td><td>θ at the departure minute</td><td>0.01°</td><td>degrees</td></tr>
+    <tr><td><code>weather.cloud_cover</code></td><td>Open-Meteo cloud / 100</td><td>0.01</td><td>fraction 0–1</td></tr>
+  </table>
+  <p>The panel rounds percentages to whole numbers (<code>Math.round</code>) and formats seconds as "8 min 18 sec".</p>
+
+  <h2>12.2 Building the line on the map</h2>
+  <p>Each edge has a curved geometry. Its points must run from the edge's start node u to its end node v; if the stored line runs the other way it is reversed. The test is a distance comparison:</p>
+  <div class="eq sm">reverse if &nbsp; |first point − u| &gt; |last point − u|</div>
+<pre><code>(x0, y0), (x1, y1) = line.coords[0], line.coords[-1]
+if math.hypot(x0 - nu["x"], y0 - nu["y"]) &gt; math.hypot(x1 - nu["x"], y1 - nu["y"]):
+    line = LineString(list(line.coords)[::-1])</code></pre>
+  <p>The edges' points are concatenated (dropping each repeated junction point), projected back to longitude/latitude and sent as a GeoJSON LineString.</p>
+
+  <h2>12.3 Memory: a small calculation</h2>
+  <p>A midday <code>/shadows</code> response is about 1.45 MB. The backend keeps at most 64 of them: 64 × 1.45 MB ≈ <b>93 MB</b>. On a 512 MB server with about 280 MB used by the loaded campus, that leaves a comfortable margin (192 cached responses would take about 280 MB on their own and could run the server out of memory).</p>
+</section>
+
+<!-- ============================== 13 ============================== -->
+<section class="chapter">
+  <h1><span class="num">13</span>Assumptions and error budget</h1>
+  <p class="lead">Every model simplifies. This table lists each simplification, the size of its effect, and why it was accepted.</p>
+  <table>
+    <tr><th style="width:24%">Assumption</th><th>Effect</th><th style="width:30%">Why accepted</th></tr>
+    <tr><td>Flat ground</td><td>Shadows on slopes are slightly longer or shorter</td><td>Keele campus is nearly flat</td></tr>
+    <tr><td>Buildings are prisms at maximum height</td><td>Overestimates shadows of buildings with lower wings</td><td>Toronto data gives one height per footprint</td></tr>
+    <tr><td>Uniform trees (3 m crown, 2–9 m)</td><td>Real trees vary; leaves assumed all year</td><td>OSM has no tree sizes</td></tr>
+    <tr><td>1.5 m sampling</td><td>&lt; 0.5 percentage points of shade (length-weighted)</td><td>Fast: one spatial query per slice</td></tr>
+    <tr><td>15-min time slices</td><td>Sun position off by ≤ 7.5 min (≤ about 1.4° elevation)</td><td>Shadows move slowly; huge speed-up</td></tr>
+    <tr><td>Trapezoid rule</td><td>≈ 10<sup>−4</sup> sun-s per edge</td><td>Edges take seconds</td></tr>
+    <tr><td>Constant speed 1.4 m/s</td><td>No stairs, crowds or waiting</td><td>Standard average walking speed</td></tr>
+    <tr><td>No shade below 3°; 300 m cap</td><td>Ignores very long dawn/dusk shadows</td><td>Weak beam; tan θ → 0</td></tr>
+    <tr><td>Clear-sky fallback sin θ</td><td>Overestimates sun near the horizon</td><td>Only used without weather data</td></tr>
+    <tr><td>One weather point, hourly</td><td>No local clouds across campus</td><td>Campus is 2 km wide</td></tr>
+    <tr><td>Time-dependent search settles by cost</td><td>Exact only if leaving earlier never hurts</td><td>Conditions change little within a walk</td></tr>
+    <tr><td>ε-dominance (2 % step)</td><td>Near-duplicate routes are merged</td><td>A short, meaningful list</td></tr>
+    <tr><td>Pin → nearest node</td><td>The dotted gap is not counted in time/distance</td><td>Pins can be anywhere on campus</td></tr>
+  </table>
+  <div class="box judge"><span class="t">If a judge asks "how accurate is it?"</span><p>Name the largest effects honestly: building heights (maximum height per footprint), uniform trees and one weather point. The numerical methods (sampling, slices, trapezoid rule) contribute well under one percentage point.</p></div>
+</section>
+
+<!-- ============================== 14 ============================== -->
+<section class="chapter">
+  <h1><span class="num">14</span>Formula sheet</h1>
+  <table>
+    <tr><th style="width:30%">Quantity</th><th>Formula</th><th style="width:22%">Code</th></tr>
+    <tr><td>Degrees of longitude</td><td>1° ≈ 111.32 km · cos φ (80.4 km on campus)</td><td>avoided by UTM 17N</td></tr>
+    <tr><td>Noon sun elevation</td><td>θ = 90° − φ + δ</td><td>pvlib (sun.py)</td></tr>
+    <tr><td>Linear interpolation</td><td>v<sub>i</sub> + (v<sub>i+1</sub> − v<sub>i</sub>)(m − i)</td><td><code>SunSchedule._interp</code></td></tr>
+    <tr><td>Shadow length</td><td>L = h / tan θ, &nbsp; ≤ 300 m, none if θ &lt; 3°</td><td><code>ShadowCaster.pieces</code></td></tr>
+    <tr><td>Shadow direction</td><td>d = L (−sin α, −cos α)</td><td><code>direction</code></td></tr>
+    <tr><td>Convex building shadow</td><td>conv(P ∪ (P + d))</td><td><code>convex_hull(multipoints)</code></td></tr>
+    <tr><td>Concave building shadow</td><td>P ∪ parallelograms(a, b, b + d, a + d)</td><td><code>sweeps</code></td></tr>
+    <tr><td>Tree shadow</td><td>conv(D + (2/tan θ) u ∪ D + (9/tan θ) u), r = 3 m</td><td>tree crowns in <code>convex</code></td></tr>
+    <tr><td>Shade fraction</td><td>f = (1/n) Σ 𝟙[sample in shadow], n = max(2, ⌈ℓ/1.5⌉)</td><td><code>shade_fractions</code></td></tr>
+    <tr><td>Time slice</td><td>k = round(t / 900 s)</td><td><code>slice_index</code></td></tr>
+    <tr><td>Sun intensity</td><td>I = direct / 1000 W/m² (or max(0, sin θ))</td><td><code>SunSchedule</code></td></tr>
+    <tr><td>Rain intensity</td><td>R = min(1, rain / 4 mm/h)</td><td><code>rain_intensity</code></td></tr>
+    <tr><td>Walking time</td><td>τ = d / 1.4</td><td><code>traversal_seconds</code></td></tr>
+    <tr><td>Sun-seconds</td><td>S<sub>e</sub> ≈ τ · (I(t<sub>e</sub>) + I(t<sub>e</sub> + τ))/2 · (1 − f)</td><td><code>sun_seconds</code></td></tr>
+    <tr><td>Rain-seconds</td><td>W<sub>e</sub> ≈ τ · (R(t<sub>e</sub>) + R(t<sub>e</sub> + τ))/2 · (1 − g)</td><td><code>rain_seconds</code></td></tr>
+    <tr><td>Sun %</td><td>100 · S / S<sub>open</sub></td><td><code>RouteResult.sun_percent</code></td></tr>
+    <tr><td>Edge cost</td><td>c = τ + w<sub>r</sub> W, &nbsp; w<sub>r</sub> ∈ {0, 10}</td><td><code>route</code></td></tr>
+    <tr><td>A* heuristic</td><td>h(n) = 0.99 · |n − goal| / 1.4</td><td><code>_heuristic</code></td></tr>
+    <tr><td>Consistency</td><td>h(u) ≤ c(u, v) + h(v)</td><td>proof in §9.3</td></tr>
+    <tr><td>Pareto limits</td><td>cap = 1.5 C<sub>quickest</sub>; &nbsp; step = max(1, 0.02 S<sub>quickest</sub>)</td><td><code>shade_options</code></td></tr>
+    <tr><td>Slider target</td><td>S<sub>1</sub> − p (S<sub>1</sub> − S<sub>k</sub>); first option with S ≤ target</td><td><code>pick</code></td></tr>
+  </table>
+  <div class="box key"><span class="t">The whole model in three lines</span><p>1. Shadows: L = h / tan θ, swept from every building and tree, sampled every 1.5 m along every walkway.<br>
+  2. Exposure: S<sub>e</sub> = ∫ I(t)(1 − f) dt, with I from direct radiation, summed along the route at the time you reach each edge.<br>
+  3. Choice: find every Pareto trade-off between cost and sun (A* keys, 50 % cap, 2 % step), then take the quickest that removes the chosen share of the avoidable sun.</p></div>
+</section>
+
+</body>
+</html>

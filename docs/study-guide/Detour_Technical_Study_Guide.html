@@ -27,7 +27,7 @@
   code { background: var(--code-bg); padding: 0 2.5pt; border-radius: 2pt; }
   pre { background: var(--code-bg); border-left: 3pt solid var(--slate); padding: 6pt 9pt; margin: 4pt 0 8pt; font-size: 8.2pt; line-height: 1.38; white-space: pre-wrap; break-inside: avoid; border-radius: 2pt; }
   pre code { background: none; padding: 0; font-size: inherit; }
-  .file { font-size: 7.8pt; color: var(--muted); margin: 6pt 0 -2pt; font-family: Consolas, monospace; }
+  .file { font-size: 7.8pt; color: var(--muted); margin: 6pt 0 -2pt; font-family: Consolas, monospace; break-after: avoid; }
   table { border-collapse: collapse; width: 100%; margin: 4pt 0 9pt; font-size: 9pt; break-inside: avoid; }
   th { text-align: left; background: #eef0f3; font-weight: 600; padding: 3.5pt 6pt; border-bottom: 1pt solid #c9cdd4; }
   td { padding: 3.5pt 6pt; border-bottom: 0.6pt solid var(--line); vertical-align: top; }
@@ -123,19 +123,19 @@
     <div><span>10</span>Exposure mathematics and units</div>
     <div><span>11</span>Weather</div>
     <div><span>12</span>Rain</div>
-    <div><span>13</span>Smart / Comfort mode</div>
-    <div><span>14</span>Testing and verification</div>
-    <div><span>15</span>Overnight audit: what changed</div>
-    <div><span>16</span>Limitations (honest list)</div>
-    <div><span>17</span>Judge Q&amp;A (40 questions)</div>
-    <div><span>18</span>Pitches: 30 s, 90 s, 3 min</div>
-    <div><span>19</span>If you only remember 10 things</div>
+    <div><span>13</span>Testing and verification</div>
+    <div><span>14</span>Limitations (honest list)</div>
+    <div><span>15</span>Judge Q&amp;A (42 questions)</div>
+    <div><span>16</span>Pitches: 30 s, 90 s, 3 min</div>
+    <div><span>17</span>If you only remember 10 things</div>
+    <div><span>18</span>Glossary</div>
   </div>
 
   <h2>How to use this guide</h2>
   <ul>
-    <li><b>Everyone</b> should know chapters 1, 3, 7 (the big picture of the algorithm), 16 and 19.</li>
-    <li><b>Frontend person:</b> chapters 2–4. <b>Graph person:</b> 6–7. <b>Math person:</b> 8–10. <b>Backend person:</b> 5, 11, 12, 14.</li>
+    <li><b>Everyone</b> should know chapters 1, 3, 7 (the big picture of the algorithm), 14 and 17.</li>
+    <li><b>Frontend person:</b> chapters 2–4. <b>Graph person:</b> 6–7. <b>Math person:</b> 8–10. <b>Backend person:</b> 5, 11–13.</li>
+    <li>Chapter 18 is a glossary: look up any word you are not sure about.</li>
     <li>Green boxes are key facts, orange boxes are traps judges like to probe, yellow boxes are likely judge questions.</li>
   </ul>
 
@@ -219,7 +219,7 @@
     <tr><td>Graph</td><td>NetworkX 3.7 (data structure) + our own A* / Pareto search</td><td>Routing</td></tr>
     <tr><td>Astronomy</td><td>pvlib 0.16 (NREL Solar Position Algorithm)</td><td>Sun elevation and azimuth</td></tr>
     <tr><td>Weather</td><td>Open-Meteo (free, no API key) via httpx</td><td>Direct sunlight, cloud cover, precipitation</td></tr>
-    <tr><td>Checks</td><td>ESLint; <code>next build</code> (TypeScript)</td><td>Lint and type-checked build (test files removed, §14)</td></tr>
+    <tr><td>Checks</td><td>ESLint; <code>next build</code> (TypeScript)</td><td>Lint and type-checked production build (§13)</td></tr>
     <tr><td>Hosting</td><td>Vercel (frontend), Render (backend, <code>render.yaml</code>)</td><td>Deploy on every push to <code>main</code></td></tr>
   </table>
 
@@ -301,7 +301,7 @@ const CampusMap = dynamic(() =&gt; import("./CampusMap"), {
 
   <p><b>Toronto time.</b> <code>nowInToronto()</code> uses <code>Intl.DateTimeFormat</code> with <code>timeZone: "America/Toronto"</code>, so the default date and time are Toronto wall-clock time even if the judge's laptop is set to another time zone. For example: 18:07 UTC in June → 14:07 (EDT); 03:03 UTC on 15 Jan → 22:03 on 14 Jan (EST).</p>
 
-  <div class="box info"><span class="t">Weather and "comfort" files</span><p>There are <b>no</b> weather or comfort files in the frontend. The frontend never calls Open-Meteo; it only displays the <code>weather</code> object that the backend includes in each <code>/route</code> response (§11). There is no Smart/Comfort mode in the code (§13).</p></div>
+  <div class="box info"><span class="t">No maths in the browser</span><p>The frontend never calls Open-Meteo and never computes routes, sun or shadows. It only sends settings and displays what the backend returns, including the <code>weather</code> object of each <code>/route</code> response (§11).</p></div>
 
   <h2>2.7 All React state (and what is deliberately <i>not</i> state)</h2>
   <div class="grid2">
@@ -390,6 +390,14 @@ const CampusMap = dynamic(() =&gt; import("./CampusMap"), {
   return () =&gt; { clearTimeout(timer); controller.abort(); };   // cleanup
 }, [path, parse, attempt]);</code></pre>
 
+  <table>
+    <tr><th style="width:22%">The hook returns</th><th>Meaning</th></tr>
+    <tr><td><code>value</code></td><td>the last successfully parsed answer (kept while a new one loads)</td></tr>
+    <tr><td><code>path</code></td><td>the request path that answer belongs to (used in the layers' <code>key</code>)</td></tr>
+    <tr><td><code>stale</code></td><td><code>true</code> while the shown answer belongs to an older path: the map dims it</td></tr>
+    <tr><td><code>error</code></td><td>the error message, but only if it belongs to the <i>current</i> path</td></tr>
+    <tr><td><code>retry()</code></td><td>clears the error and bumps <code>attempt</code>, which re-runs the effect</td></tr>
+  </table>
   <div class="grid2">
   <div>
   <h3>Debounce (150 ms)</h3>
@@ -401,7 +409,7 @@ const CampusMap = dynamic(() =&gt; import("./CampusMap"), {
   <h3>Stale routes</h3>
   <p><code>stale = loaded.path !== path</code>. While a new answer is loading, the old route stays on the map but is dimmed (lower opacity, Detour dashed <code>"6 8"</code>) and the panel says "Updating...". The user never sees an empty map flash.</p>
   <h3>Retry</h3>
-  <p>An error is stored with its path, so it only shows while it belongs to the current request. <b>Retry</b> bumps <code>attempt</code>, a dependency of the effect, which re-runs the fetch. After tonight's audit it retries <i>only</i> what failed, including the campus outline (§15).</p>
+  <p>An error is stored with its path, so it only shows while it belongs to the current request. <b>Retry</b> bumps <code>attempt</code>, a dependency of the effect, which re-runs the fetch. It retries <i>only</i> what failed: the route, the shadows, or the campus outline (which fails if the page loads before the backend is up).</p>
   </div>
   </div>
 
@@ -513,15 +521,32 @@ const CampusMap = dynamic(() =&gt; import("./CampusMap"), {
   <h2>5.2 Endpoints</h2>
   <table>
     <tr><th>Endpoint</th><th>Parameters</th><th>Returns</th></tr>
-    <tr><td><code>GET /route</code></td><td><code>date</code> (1900-01-01..2100-12-31), <code>time</code> (HH:MM Toronto), <code>sun_avoidance</code> 0–100 (default 50), <code>w_rain</code> 0–50 (default 0), <code>from_lat/from_lon/to_lat/to_lon</code> (optional, default = demo trip), hidden <code>clear_sky</code></td><td>Both routes (time, distance, sun %, sun-seconds, rain %, GeoJSON line), sun position, weather, <code>route_options</code>, <code>extra_seconds</code>, changes in sun/rain %</td></tr>
+    <tr><td><code>GET /route</code></td><td><code>date</code> (1900-01-01..2100-12-31), <code>time</code> (HH:MM Toronto), <code>sun_avoidance</code> 0–100 (default 50), <code>w_rain</code> 0–50 (default 0), <code>from_lat/from_lon/to_lat/to_lon</code> (optional, default = demo trip), <code>clear_sky</code> (demo option; the UI never sends it)</td><td>Both routes (time, distance, sun %, sun-seconds, rain %, GeoJSON line), sun position, weather, <code>route_options</code>, <code>extra_seconds</code>, changes in sun/rain %</td></tr>
     <tr><td><code>GET /shadows</code></td><td><code>date</code>, <code>time</code></td><td>GeoJSON FeatureCollection with one MultiPolygon (empty at night)</td></tr>
     <tr><td><code>GET /campus</code></td><td>none</td><td>GeoJSON Feature: the campus boundary polygon</td></tr>
-    <tr><td><code>GET/HEAD /health</code></td><td>none</td><td><code>{"status":"ok","edges":5172,"buildings":737}</code> (HEAD added for UptimeRobot)</td></tr>
+    <tr><td><code>GET/HEAD /health</code></td><td>none</td><td><code>{"status":"ok","edges":5172,"buildings":737}</code> (HEAD too, for uptime monitors)</td></tr>
     <tr><td><code>GET /docs</code></td><td>none</td><td>Auto-generated interactive API docs</td></tr>
   </table>
   <p>Error codes: <b>422</b> for invalid input (bad time, out-of-range date, pin outside campus, only one of lat/lon). A <b>404</b> (no route) cannot happen for pins on campus, because the walk graph is one strongly connected component. CORS allows <code>localhost:3000</code> plus the sites in the <code>ALLOWED_ORIGINS</code> environment variable; only GET is allowed.</p>
 
-  <h2>5.3 Start-up (the <code>lifespan</code> function)</h2>
+  <h2>5.3 What one <code>/route</code> request does, step by step</h2>
+  <p class="file">backend/api.py, get_route() (simplified)</p>
+<pre><code>origin_node = _snap("start", from_lat, from_lon)     # pin → nearest graph node (422 if off campus)
+dest_node = _snap("end", to_lat, to_lon)
+when = _parse_when(date, time)                        # Toronto local time, 1900–2100
+model = _model_for(when, clear_sky)                   # sun + weather for that date (cached)
+fast, options = _options_for(model, origin_node, dest_node, when, w_rain)   # cached per trip
+ctx = pick(options, sun_avoidance / 100)              # the Detour route</code></pre>
+  <ol>
+    <li><b>Validate.</b> FastAPI checks every query parameter's type and range before any of our code runs (422 if wrong).</li>
+    <li><b>Snap the pins.</b> Each pin is converted to metres, checked against the campus polygon, and replaced by its nearest graph node (§6.1).</li>
+    <li><b>Pick the model.</b> <code>_model_for</code> returns the exposure model for that date: live Open-Meteo weather (refetched every 30 min) or a clear sky.</li>
+    <li><b>Find the routes.</b> <code>route()</code> gives the fastest route (pure walking time); <code>shade_options()</code> gives every time/shade trade-off (§7.4). Both are cached, so moving only the avoidance slider skips this step.</li>
+    <li><b>Choose.</b> <code>pick()</code> takes the quickest option that removes the requested share of the avoidable sun (§7.5).</li>
+    <li><b>Answer.</b> Each route's edges are joined into one line, converted to longitude/latitude (GeoJSON) and sent with time, distance, sun %, rain %, the weather and the sun position.</li>
+  </ol>
+
+  <h2>5.4 Start-up (the <code>lifespan</code> function)</h2>
   <ol>
     <li><code>load_campus()</code> reads the cached files in <code>backend/cache/</code> (no internet needed): the walk graph, 737 building footprints with heights, 1,181 trees and the campus polygon. (If the cache were missing it would download from OSM via Overpass, rotating 3 mirror servers with exponential back-off.)</li>
     <li>Builds the base <code>ExposureModel</code>: places <b>121,632 sample points</b> every 1.5 m along all edges, indexes them in an STRtree, and computes each edge's rain shelter fraction. This is done <b>once</b>.</li>
@@ -529,19 +554,19 @@ const CampusMap = dynamic(() =&gt; import("./CampusMap"), {
   </ol>
   <p>Uvicorn only opens the port after this finishes, which is why the frontend can briefly report "can't reach the backend" during start-up (then Retry).</p>
 
-  <h2>5.4 Caches (static data loaded once, results reused)</h2>
+  <h2>5.5 Caches (static data loaded once, results reused)</h2>
   <table>
     <tr><th>Cache</th><th>Key</th><th>Bound</th><th>Why</th></tr>
     <tr><td>Campus data, edge table, sample points, shelter</td><td>—</td><td>loaded once</td><td>Never changes while running</td></tr>
     <tr><td>Exposure model per day</td><td>(date, clear_sky)</td><td>cleared above 32</td><td>Sun schedule for a date; rebuilt when the weather refreshes</td></tr>
     <tr><td>Route options</td><td>(model, origin, dest, time, w_rain)</td><td>cleared above 64</td><td>Moving only the avoidance slider re-picks from cached options</td></tr>
     <tr><td>Shade fractions <i>f</i></td><td>15-min slice</td><td>192 slices</td><td>Shadows change slowly; shared by all models</td></tr>
-    <tr><td><code>/shadows</code> response bodies</td><td>15-min slice</td><td><b>64</b> (was 192)</td><td>Each midday body ≈ 1.45 MB; see §15</td></tr>
+    <tr><td><code>/shadows</code> response bodies</td><td>15-min slice</td><td>64 slices</td><td>A midday body is ≈ 1.45 MB, so 64 keeps the server well inside its 512 MB</td></tr>
     <tr><td>Spatial index of the graph nodes</td><td>—</td><td>built once</td><td>Snaps a pin to its nearest node in microseconds</td></tr>
     <tr><td>Weather per date</td><td>date</td><td>30 min (60 s after a failure)</td><td>Respect the free API, keep requests fast</td></tr>
   </table>
 
-  <h2>5.5 Where the data comes from</h2>
+  <h2>5.6 Where the data comes from</h2>
   <table>
     <tr><th>Data</th><th>Source</th><th>Numbers</th></tr>
     <tr><td>Walk network</td><td>OSM via OSMnx, <code>network_type="walk"</code>, campus + 100 m buffer, projected to UTM 17N</td><td>1,804 nodes, 5,172 directed edges</td></tr>
@@ -654,6 +679,15 @@ const CampusMap = dynamic(() =&gt; import("./CampusMap"), {
   </figure>
   </div>
   </div>
+
+  <p class="file">backend/router.py, inside shade_options(): the domination rule</p>
+<pre><code># labels are (cost, sun, arrival time) at node u, popped from the heap in cost order
+if sun &gt; least_sun.get(u, inf) - step or sun &gt; least_sun.get(dest, inf) - step:
+    continue              # a cheaper label here (or an option already found) gets about as little sun
+least_sun[u] = sun        # keep it: the least sun seen at u so far
+if u == dest:
+    found.append(...)     # a new option, costlier but shadier than the previous one</code></pre>
+  <p>Because labels come out in cost order, every label that survives is a new trade-off: more cost, less sun. When the destination is reached, the label's chain of parent labels is followed back to rebuild the route.</p>
 
   <h2>7.5 The slider: <code>pick()</code></h2>
   <p class="file">backend/router.py</p>
@@ -857,7 +891,7 @@ high = np.minimum(self._cvx_h / tan_el, MAX_SHADOW_LENGTH_M)   # L = h / tan(the
     <tr><td>Who calls it</td><td>Only the backend, inside <code>/route</code>. The frontend never calls Open-Meteo.</td></tr>
     <tr><td>Refresh timing</td><td>Cached per date for <b>30 minutes</b>; after a failed fetch it retries after <b>60 seconds</b>; each HTTP call times out after <b>5 s</b>.</td></tr>
     <tr><td>Time resolution</td><td>Radiation and precipitation are averages over the hour <i>ending</i> at each timestamp, so they are placed at the middle of that hour (−30 min) and linearly interpolated to the minute. Cloud cover is instantaneous and interpolated at the hour.</td></tr>
-    <tr><td>Fallback</td><td>If both APIs fail (or the date is out of their range, e.g. before 1940 or months ahead), weather = none: intensity = clear-sky sin θ, no rain; the panel says <i>"Weather unavailable, assuming clear sky."</i> Hidden <code>clear_sky=true</code> forces this for demos.</td></tr>
+    <tr><td>Fallback</td><td>If both APIs fail (or the date is out of their range, e.g. before 1940 or months ahead), weather = none: intensity = clear-sky sin θ, no rain; the panel says <i>"Weather unavailable, assuming clear sky."</i> <code>clear_sky=true</code> forces this for demos.</td></tr>
     <tr><td>Shown to the user</td><td>"Cloud 0 % · direct sun 488 W/m² · rain 0 mm/h (live, Open-Meteo)" under the route.</td></tr>
   </table>
   <h2>11.1 What actually affects routing</h2>
@@ -906,83 +940,66 @@ direct=np.interp(minutes, mid_hour, values["direct_radiation"])</code></pre>
   <div class="box key"><span class="t">Worked example</span><p>Raining 2 mm/h → R = 0.5. Open 30 s edge: W = 30 × 0.5 = 15 rain-s → cost 30 + 10 × 15 = <b>180</b>. Covered 45 s corridor (g = 1): W = 0 → cost <b>45</b>. The router takes the corridor.</p></div>
   <div class="box warn"><span class="t">Limits</span><p>Rain is assumed to fall straight down (wind ignored). Indoor connections are assumed open. Rain % in the UI uses the rain at departure time to decide whether to show the row; routing integrates rain along the whole walk.</p></div>
 
-  <h1 style="margin-top:22pt"><span class="num">13</span>Smart / Comfort mode</h1>
-  <div class="box warn"><span class="t">Not in the code</span><p>There is <b>no</b> Smart or Comfort mode in the current code: no heat base, cloud factor, sun factor or comfort score, in either the frontend or the backend. If a judge asks, the honest answer is that "heat-aware" in Detour means <b>direct-sun exposure</b>, measured in sun-seconds from real shadows and live direct radiation; air temperature and humidity are not used. A comfort score combining temperature, humidity and sun would be a natural next step.</p></div>
 </section>
 
-<!-- ============================== 14 TESTING ============================== -->
+<!-- ============================== 13 TESTING ============================== -->
 <section class="chapter">
-  <h1><span class="num">14</span>Testing and verification</h1>
-  <p class="lead">During development the code had 75 automated tests. They all passed on the final code on 18 Oct 2026, and the team then removed the test files to keep the final repository minimal.</p>
+  <h1><span class="num">13</span>Testing and verification</h1>
+  <p class="lead">How we know the routes and numbers are right.</p>
   <table>
-    <tr><th>Check</th><th>Command</th><th>Status</th></tr>
-    <tr><td>Lint (ESLint, Next.js rules)</td><td><code>npm run lint</code></td><td><span class="pill p-green">0 problems</span> still in the repo</td></tr>
-    <tr><td>Production build (incl. TypeScript check)</td><td><code>npm run build</code></td><td><span class="pill p-green">success, <code>/</code> static</span> still in the repo</td></tr>
-    <tr><td>Frontend unit tests (<code>node:test</code>)</td><td>was <code>npm test</code></td><td>15 / 15 passed, then removed</td></tr>
-    <tr><td>Backend tests (pytest)</td><td>was <code>python -m pytest backend</code></td><td>60 / 60 passed, then removed</td></tr>
+    <tr><th style="width:26%">Check</th><th>What it proves</th><th style="width:18%">Result</th></tr>
+    <tr><td>Lint: <code>npm run lint</code></td><td>ESLint with the Next.js rules: no unused code, correct React hook dependencies, no common mistakes.</td><td><span class="pill p-green">0 problems</span></td></tr>
+    <tr><td>Build: <code>npm run build</code></td><td>TypeScript type-checks every file (e.g. a string passed where a number is expected fails), then the page is prerendered.</td><td><span class="pill p-green">success</span></td></tr>
+    <tr><td>Automated tests (during development)</td><td>15 frontend and 60 backend tests, listed below. They are not kept in the final repository.</td><td><span class="pill p-green">75 / 75 passed</span></td></tr>
+    <tr><td>Before/after comparison</td><td>Before the final code cleanup, 756 API requests (routes at many times and pins, shadows, errors, live weather) were recorded and compared with the cleaned-up code: byte-for-byte identical. A scripted browser click-through showed an identical page.</td><td><span class="pill p-green">identical</span></td></tr>
   </table>
-  <div class="box warn"><span class="t">What this means</span><p>The final repository has no automated tests: only lint and the type-checked build run. After the tests were removed, the backend was smoke-tested by hand: <code>/health</code>, <code>/campus</code>, <code>/route</code> at 0, 50 and 100 % avoidance, an off-campus pin (422) and <code>/shadows</code>. The sections below describe what the removed tests checked, which is still useful when a judge asks how you know the maths is right.</p></div>
-  <h2>14.1 What the backend tests checked (removed)</h2>
-  <table>
-    <tr><th>File</th><th>Tests</th><th>What they prove</th></tr>
-    <tr><td><code>test_router.py</code></td><td>22</td><td>Fastest route = NetworkX shortest path ÷ 1.4 on 10 random campus pairs; A* = Dijkstra cost with fewer nodes; Pareto options strictly slower and shadier, within the 50 % cap, and covering every weighted-sum route; <code>pick()</code> thresholds; sampled shade ≈ exact geometry; rain shelter and OSM tags; overcast = nothing to avoid; DST days; caches bounded</td></tr>
-    <tr><td><code>test_api.py</code></td><td>16</td><td>Response shape, GeoJSON [lon, lat] order, day vs night, 0 % = fastest, 422 validation, date range, shadows at night empty, custom pins, off-campus pins rejected, weather source reported, CORS, <b>new:</b> shadow cache memory budget, shadow cache bound, pins snapped once</td></tr>
-    <tr><td><code>test_sun_shadow.py</code></td><td>15</td><td>Shadow direction (south → north, east → west), L = h/tan θ at 30°, 300 m cap, areas, concave U-shape keeps its gap, no shadow below 3°, tree shadow geometry</td></tr>
-    <tr><td><code>test_weather.py</code></td><td>6</td><td>Interpolation to the minute, hour averages at mid-hour, incomplete data rejected, rain saturation at 4 mm/h, offline fallback, caching</td></tr>
-    <tr><td><code>test_data.py</code></td><td>1</td><td>Toronto Massing snapshot: 737 buildings, CRS, max height 61.537 m, 2-D geometry</td></tr>
-  </table>
-  <h2>14.2 What the frontend tests checked (removed)</h2>
-  <p>Query building in backend units (avoidance as %, <code>w_rain=10</code>), pins sent only when set, clamping to 0–100, every input changes the route query but only date/time change the shadow query, time formatting, valid and zero-length routes parse, nine kinds of malformed responses are rejected, night-time empty shadows parse, error messages from <code>getJson</code> (backend detail, unreachable backend, aborts re-thrown), Toronto time in summer and winter, date range, campus ring parsing and point-in-polygon on an L-shaped polygon.</p>
-  <div class="nobreak">
-  <h2>14.3 Edge cases those tests covered</h2>
+
+  <h2>13.1 What the automated tests checked</h2>
   <div class="grid2">
+  <div>
+  <h3>Routing</h3>
   <ul>
-    <li>Start = end (zero-length route)</li>
-    <li>Night (no sun) and overcast (no direct beam)</li>
-    <li>Pins off campus or far from paths</li>
-    <li>DST-change days (sun schedule)</li>
+    <li>The fastest route equals NetworkX's shortest path ÷ 1.4 m/s on 10 random campus pairs.</li>
+    <li>A* returns the same cost as Dijkstra while settling fewer nodes.</li>
+    <li>Pareto options are strictly slower and shadier, stay within the 50 % cap, and include every route a weighted sum could find.</li>
+    <li><code>pick()</code> thresholds; a toy graph with a known answer takes the shade detour.</li>
+    <li>Under overcast there is nothing to avoid; rain shelter and OSM tags work.</li>
   </ul>
+  <h3>Sun and shadows</h3>
   <ul>
-    <li>Unreachable node → 404</li>
-    <li>Dates 0001 and 9999 → 422</li>
-    <li>Weather API offline → clear-sky fallback</li>
-    <li>OSM tag lists stored as text in GraphML</li>
+    <li>Shadow direction: sun in the south → shadow north; sun in the east → shadow west.</li>
+    <li>L = h / tan θ at 30°; the 300 m cap; no shadow below 3°.</li>
+    <li>A U-shaped building keeps its sunlit courtyard; tree shadow geometry.</li>
+    <li>1.5 m sampling within 0.5 percentage points of exact geometry over the whole campus.</li>
+  </ul>
+  </div>
+  <div>
+  <h3>API and weather</h3>
+  <ul>
+    <li>Response shape; GeoJSON in [lon, lat] order; day vs night; 0 % avoidance = fastest.</li>
+    <li>422 for bad input and off-campus pins; date range; CORS.</li>
+    <li>Weather interpolated to the minute with hour averages at mid-hour; rain saturates at 4 mm/h; offline → clear-sky fallback.</li>
+    <li>Both DST-change days line up.</li>
+  </ul>
+  <h3>Frontend</h3>
+  <ul>
+    <li>The URL carries every input in backend units; only date and time change the shadow URL.</li>
+    <li>Malformed responses are rejected with a clear message; empty night-time shadows parse.</li>
+    <li>Toronto time in summer and winter; campus parsing and point-in-polygon.</li>
   </ul>
   </div>
   </div>
+  <div class="box judge"><span class="t">Likely question</span><p>"Where are your tests?" Honest answer: we wrote and ran 75 automated tests during development, and they all passed on the final code; we left them out of the final repository to keep it small. Lint and the type-checked build still run, and the final cleanup was checked by comparing 756 API answers before and after.</p></div>
 </section>
 
-<!-- ============================== 15 AUDIT ============================== -->
+<!-- ============================== 14 LIMITATIONS ============================== -->
 <section class="chapter">
-  <h1><span class="num">15</span>Overnight audit: what changed</h1>
-  <p class="lead">Rule: only clearly safe changes. No routing, sun, shadow, tree, rain or weather maths, constants, thresholds, UI layout or API contract was changed.</p>
-  <table>
-    <tr><th style="width:24%">Change</th><th>Problem found</th><th>Fix and why it is safe</th></tr>
-    <tr><td><b>Shadow response cache 192 → 64 slices</b><br><code>backend/api.py</code></td><td>Measured: a midday <code>/shadows</code> body is 1.45 MB, and the cache could hold 192 of them (≈ 266 MB). The backend's working set grew from 280 MB to 546 MB after 180 slices, above the 512 MB of the Render plan, so scrubbing time with shadows on could crash the server.</td><td>Same cache, smaller bound (a full day of daylight slices). A miss only recomputes the same body (~90 ms). Measured after: stays ≈ 370 MB. Test written first (failed: 192 × 1.45 MB &gt; 128 MB).</td></tr>
-    <tr><td><b>Pin → node cache</b><br><code>backend/api.py</code></td><td><code>nearest_node</code> rebuilt a spatial index of the whole graph on every <code>/route</code> call, about 6 ms of a 14 ms cached request, even though moving the slider resends the same pins.</td><td>Results remembered per exact (lat, lon), bounded at 256. Same function, same inputs → identical node. The off-campus check still runs every time. Test: 3 slider moves → 2 lookups. Later replaced by a node index built once (see “Final simplification”).</td></tr>
-    <tr><td><b>Retry recovers the campus outline</b><br><code>CampusMap.tsx</code></td><td>If the page loaded before the backend was up (normal with <code>npm run dev</code> or a sleeping server), the <code>/campus</code> fetch failed silently and was never retried: the outline stayed missing until a page reload. Retry also re-downloaded the 1.45 MB shadows even when only the route had failed.</td><td>The campus error is reported in the same status line, and Retry retries only the requests that failed. Verified in headless Edge: backend off → message shown; backend started → Retry → outline drawn; then pins, route and shadows worked, with one request each in the server log.</td></tr>
-    <tr><td><b>Pins far from a path</b><br><code>backend/api.py</code></td><td>Pins more than 150 m from the nearest walkway node, about 4 % of the campus (e.g. a building near Canlan Ice Sports; the farthest campus point is 322 m from a node), were rejected with "start is too far from any walkable path".</td><td>The 150 m limit is removed; every on-campus pin snaps to its nearest node and the dotted link shows the gap. Safe because the walk graph is one strongly connected component. Checked: the 10 farthest campus points and 154 sampled starts all return a route. If both pins snap to the same node, the route is now a zero-length line at that node, so the dotted links still draw.</td></tr>
-    <tr><td><b>Final simplification</b><br>all files</td><td>Dead code left over from the tests: a sun weight and an A*/Dijkstra switch in <code>route()</code> that the app never used, a slow union <code>shadow()</code>, <code>trip.py</code>, and long header comments.</td><td>Removed or shortened, and pins now snap through a node index built once at start-up (replacing the pin cache). Checked: 756 API requests (routes, shadows, errors, live weather) give byte-identical answers before and after, and the page's DOM is identical through a scripted click-through.</td></tr>
-    <tr><td><b>Cleanup</b></td><td>Files the running app never uses: the tests, the backend's standalone <code>/demo</code> page, an old <code>backend/cache/buildings.gpkg</code> the code no longer reads, a CSV copy of the building-heights GeoJSON, an unused logo image, <code>requirements-dev.txt</code> and the <code>npm test</code> script. <code>scripts/setup.mjs</code> accepted Python 3.10, but the pinned packages need 3.12.</td><td>All removed (the <code>/demo</code> endpoint too). <code>npm run setup</code> now requires Python 3.12 and installs <code>requirements.txt</code>; <code>npm run setup</code> and <code>npm run dev</code> are kept. Lint and build pass and the backend smoke test passes.</td></tr>
-    <tr><td>Docs</td><td>README and <code>render.yaml</code> said the backend "peaks around 260 MB". Both READMEs also had claims the code does not back up: the old "ShadeRoute" / "ContextRoute" names, Python 3.10 (the pinned packages need 3.12), options "at most 50 % slower", "about 6 options", an outdated example response and drawing snippet, an incomplete shelter-tag list, and 0.2 % sampling accuracy (the test checks 0.5 points).</td><td>Updated to the measured memory figures; both READMEs rewritten to match the code, with a real <code>/route</code> response. Text-only code fixes: the API docs title says "Detour" instead of "ContextRoute"; docstrings now mention tree shadows and 1.5 m sampling. No behaviour changed.</td></tr>
-  </table>
-  <h2>15.1 Checked and left alone</h2>
-  <ul>
-    <li>Debounce (150 ms), AbortController, stale handling and retry in <code>useRemote</code>: correct cleanup, no race; untouched.</li>
-    <li>No duplicate route or shadow requests (verified in the server log); shadows are not fetched while hidden.</li>
-    <li>No memoisation added: the remaining per-render work (a few Leaflet <code>setStyle</code> calls) is cheap, and the event-handler closures need fresh values.</li>
-    <li>Not changed (judged possible but risky): snapping the shadow request to the 15-minute slice on the client (would avoid re-downloading identical shadows when the time moves within a slice, but touches time arithmetic near midnight); the per-date weather cache has no size bound (≈ 35 KB per date, low risk).</li>
-  </ul>
-</section>
-
-<!-- ============================== 16 LIMITATIONS ============================== -->
-<section class="chapter">
-  <h1><span class="num">16</span>Limitations (honest list)</h1>
+  <h1><span class="num">14</span>Limitations (honest list)</h1>
   <div class="grid2">
   <div>
   <h3>Physical model</h3>
   <ul>
-    <li>Flat ground; constant walking speed 1.4 m/s (no stairs, slopes or crowds). Terrain elevation was removed earlier.</li>
+    <li>Flat ground; constant walking speed 1.4 m/s (no stairs, slopes or crowds).</li>
     <li>"Heat" = direct-sun exposure only. No air temperature, humidity, wind, or heat from pavement.</li>
     <li>Buildings are prisms at their <b>maximum</b> height (Toronto <code>MAX_HEIGHT</code>), which overestimates shadows of buildings with lower wings.</li>
     <li>All trees are the same size (3 m crown, 2–9 m high); OSM may miss trees; leaves are assumed present all year.</li>
@@ -1010,21 +1027,15 @@ direct=np.interp(minutes, mid_hour, values["direct_radiation"])</code></pre>
     <li>Keele Campus only; pins must be inside the campus. The dotted link from a pin to the nearest path is not counted in the route's time or distance.</li>
     <li>Free Render plan sleeps after 15 min; first request then waits ~1 min.</li>
     <li>Single backend process with in-memory caches (cleared wholesale when full).</li>
-    <li>No automated tests in the final repository (they were removed; lint and the type-checked build remain). No mobile GPS / live navigation.</li>
+    <li>No automated tests in the final repository (§13); no mobile GPS or live turn-by-turn navigation.</li>
   </ul>
   </div>
   </div>
-  <h2>16.1 Where documentation and code disagree</h2>
-  <p>Both READMEs, the old "ContextRoute" name in the API docs title and a few out-of-date code comments were corrected to match the code (§15). The only naming leftover is the API field <code>contextroute</code>, which holds the Detour route; it was kept so the frontend/backend contract does not change. What remains:</p>
-  <table>
-    <tr><th>Documentation says</th><th>The code actually</th></tr>
-    <tr><td>Project brief mentions frontend weather/comfort files and Smart/Comfort mode</td><td>They do not exist (§2.6, §13).</td></tr>
-  </table>
 </section>
 
 <!-- ============================== 17 Q&A ============================== -->
 <section class="chapter qa-list">
-  <h1><span class="num">17</span>Judge Q&amp;A</h1>
+  <h1><span class="num">15</span>Judge Q&amp;A</h1>
   <p class="lead">Short, accurate answers. Say "I don't know, but here's how I'd find out" rather than guess.</p>
 
   <div class="qcat">Frontend and React</div>
@@ -1048,6 +1059,7 @@ direct=np.interp(minutes, mid_hour, values["direct_radiation"])</code></pre>
   <div class="qa"><div class="q">What does FastAPI validate for you?</div><div class="a">Types and ranges of every query parameter (e.g. <code>sun_avoidance</code> 0–100, <code>w_rain</code> 0–50, valid date/time), answering 422 automatically. We add checks for the date range and the campus boundary.</div></div>
   <div class="qa"><div class="q">Why is moving the sun-avoidance slider so fast?</div><div class="a">The whole set of route options is cached per trip, time and rain weight; the slider only re-runs <code>pick()</code> on the cached list. A cached request takes about 15 ms on the server.</div></div>
   <div class="qa"><div class="q">How does the backend know a pin is on campus?</div><div class="a">It converts the pin to metres and tests it against the OSM campus polygon with Shapely, then snaps it to the nearest graph node, however far away it is. The frontend does the same polygon check first (ray casting), but the backend never trusts the client.</div></div>
+  <div class="qa"><div class="q">What happens if a pin is far from any path?</div><div class="a">It snaps to the nearest walkway node, however far away, and the map draws a dotted line from the pin to the route. Time and distance count only the walkway part. Off-campus pins are refused.</div></div>
   <div class="qa"><div class="q">Does the app need the internet to compute routes?</div><div class="a">Only for weather and map tiles. The graph, buildings and trees are committed cache files loaded at start-up; without weather it falls back to a clear sky.</div></div>
 
   <div class="qcat">Graphs and algorithms</div>
@@ -1065,6 +1077,7 @@ direct=np.interp(minutes, mid_hour, values["direct_radiation"])</code></pre>
   <div class="qa"><div class="q">What does "Sun 27 %" mean on the card?</div><div class="a">The route gets 27 % of the direct sun it would get if nothing cast a shadow on it. The backend sends 27.x, already a percentage.</div></div>
   <div class="qa"><div class="q">Why the trapezoid rule?</div><div class="a">Sun intensity changes over a walk, so exposure is an integral over time. The trapezoid rule averages entry and exit intensity per edge; edges take seconds, so it is very accurate.</div></div>
   <div class="qa"><div class="q">Degrees or radians?</div><div class="a">The API and UI use degrees; the code converts with <code>math.radians</code> before sin/tan.</div></div>
+  <div class="qa"><div class="q">Why sample points instead of exact line–shadow intersection?</div><div class="a">Speed. The 121,632 sample points never move, so they are indexed once in an STRtree, and each 15-minute shadow is one spatial query. Intersecting thousands of shadow polygons with every walkway exactly would be much slower, for almost no gain in accuracy.</div></div>
   <div class="qa"><div class="q">How accurate is the 1.5 m sampling?</div><div class="a">During development a test compared it with exact line/polygon overlap over the whole campus at three times of day; the length-weighted difference was under 0.5 percentage points.</div></div>
 
   <div class="qcat">Weather and rain</div>
@@ -1075,25 +1088,25 @@ direct=np.interp(minutes, mid_hour, values["direct_radiation"])</code></pre>
 
   <div class="qcat">Design, testing, limitations</div>
   <div class="qa"><div class="q">Why show the fastest route too?</div><div class="a">So the user sees the trade-off: "+48 sec vs fastest" and "Sun 89 % → 71 %". Detour is green and drawn on top; Fastest is a red dotted reference.</div></div>
-  <div class="qa"><div class="q">How do you know the router is correct?</div><div class="a">During development, automated tests checked that the fastest route matches NetworkX's shortest path on random campus pairs, that A* matches Dijkstra, that the Pareto options are strictly slower and shadier and include every weighted-sum route, and that a toy graph with a known answer takes the shade detour. They all passed on the final code before the test files were removed.</div></div>
-  <div class="qa"><div class="q">Do you have automated tests?</div><div class="a">We wrote 75: 15 frontend (queries, validation, time zones, point-in-polygon) and 60 backend (router, API, shadows, weather, data), and all passed on the final code. We then removed the test files to keep the final repository minimal, so what remains is lint and the type-checked production build.</div></div>
+  <div class="qa"><div class="q">How do you know the router is correct?</div><div class="a">During development, automated tests checked that the fastest route matches NetworkX's shortest path on random campus pairs, that A* matches Dijkstra, that the Pareto options are strictly slower and shadier and include every weighted-sum route, and that a toy graph with a known answer takes the shade detour. All 75 tests passed on the final code.</div></div>
+  <div class="qa"><div class="q">Do you have automated tests?</div><div class="a">We wrote 75: 15 frontend (queries, validation, time zones, point-in-polygon) and 60 backend (router, API, shadows, weather, data), and all passed on the final code. They are not kept in the final repository; lint and the type-checked production build still run.</div></div>
   <div class="qa"><div class="q">What's the biggest limitation?</div><div class="a">We model direct-sun exposure, not full thermal comfort: no air temperature, humidity or wind, uniform trees, maximum building heights, and one weather point for the campus.</div></div>
   <div class="qa"><div class="q">What would you build next?</div><div class="a">A comfort score with temperature and humidity, real tree sizes, door opening hours for indoor routes, live GPS navigation, and other campuses (the pipeline only needs a boundary, the OSM walk network and building heights).</div></div>
-  <div class="qa"><div class="q">Did you find any bugs while preparing?</div><div class="a">Yes: the shadow cache could use more memory than our server has, and the campus outline didn't come back after a backend restart. Both fixed and verified, without changing any maths.</div></div>
+  <div class="qa"><div class="q">Is Detour really "heat-aware"?</div><div class="a">It is direct-sun-aware: it measures how many seconds of direct sun each route gets, from real shadows and live direct radiation. Air temperature and humidity are not used; a comfort score combining them would be a natural next step.</div></div>
 </section>
 
-<!-- ============================== 18 PITCHES ============================== -->
+<!-- ============================== 16 PITCHES ============================== -->
 <section class="chapter">
-  <h1><span class="num">18</span>Pitches</h1>
-  <h2>18.1 The 30-second explanation</h2>
+  <h1><span class="num">16</span>Pitches</h1>
+  <h2>16.1 The 30-second explanation</h2>
   <div class="script"><p>Detour is a walking map for York's Keele Campus that keeps you out of the sun. You drop a start and an end pin, pick how much sun you want to avoid, and Detour compares the fastest route with a shadier one, telling you exactly how much extra time it costs. Behind it, we compute real building and tree shadows from the sun's position, combine them with live weather, and search every trade-off between walking time and sun exposure across the campus walkway graph.</p></div>
 
-  <h2>18.2 The 90-second technical explanation</h2>
+  <h2>16.2 The 90-second technical explanation</h2>
   <div class="script"><p>The frontend is Next.js and React with a Leaflet map. React state holds the date, time, pins and sliders; every change becomes a URL, which a custom hook debounces for 150 ms, fetches with cancellation, and validates before drawing the GeoJSON route.</p>
   <p>The backend is FastAPI in Python. The campus is a graph of 1,804 walkway intersections and 5,172 directed edges from OpenStreetMap, projected into metres. We get the sun's elevation and azimuth from pvlib and cast shadows from 737 City of Toronto buildings and 1,181 trees with L = h / tan θ, sweeping each footprint away from the sun.</p>
   <p>We sample every walkway every 1.5 m to get its shaded fraction, then integrate sun exposure over the walk in sun-seconds, using live direct radiation from Open-Meteo so clouds count. Instead of a single weighted cost, we run a bicriteria A* search that finds the Pareto set of routes trading time for shade. The slider picks the quickest route that removes the chosen share of the avoidable sun, and optional rain avoidance keeps you under roofs. During development, automated tests confirmed that our A* matches Dijkstra and NetworkX.</p></div>
 
-  <h2>18.3 The 3-minute team presentation</h2>
+  <h2>16.3 The 3-minute team presentation</h2>
   <div class="script"><span class="time">0:00–0:45</span><div class="who">Frontend person: the problem and the app</div>
   <p>On a hot day, the fastest walk across campus is often in full sun, while a route one minute longer is in shade. Detour shows you both. <i>[Demo: place two pins.]</i> Green is Detour, red dotted is the fastest route. The panel says how much time and sun each takes. When I move the sun-avoidance slider, the green route changes; when I move the time, everything updates, because the app is built in React and every input is state. Changes are debounced and old requests are cancelled, so it stays responsive. Turning on Show shadows draws the actual building and tree shadows for this moment.</p></div>
   <div class="script"><span class="time">0:45–1:30</span><div class="who">Graph person: the network and the search</div>
@@ -1104,9 +1117,9 @@ direct=np.interp(minutes, mid_hour, values["direct_radiation"])</code></pre>
   <p>Sun intensity comes from live Open-Meteo direct radiation, because shade only blocks the direct beam; on a cloudy day there is little to avoid and Detour says so. With Avoid rain on, we also count rain-seconds on unsheltered walkways and stay under roofs. It's a FastAPI backend with caching, so slider changes answer in milliseconds, and during development we checked that A* matches Dijkstra. Limits: we model direct sun, not air temperature, and trees are a standard size. Next we'd add a comfort score and live navigation. Thank you.</p></div>
 </section>
 
-<!-- ============================== 19 TOP 10 ============================== -->
+<!-- ============================== 17 TOP 10 ============================== -->
 <section class="chapter">
-  <h1><span class="num">19</span>If you only remember 10 things</h1>
+  <h1><span class="num">17</span>If you only remember 10 things</h1>
   <ol class="top10">
     <li><b>Frontend draws, backend thinks.</b> Next.js/React/Leaflet in the browser; FastAPI/Python does all routing, sun, shadow and weather maths and returns JSON + GeoJSON.</li>
     <li><b>The campus is a graph</b> G = (V, E): 1,804 nodes, 5,172 directed walkway edges from OpenStreetMap, in metres (UTM 17N). Walking speed 1.4 m/s, so τ = d / 1.4.</li>
@@ -1117,9 +1130,44 @@ direct=np.interp(minutes, mid_hour, values["direct_radiation"])</code></pre>
     <li><b>Intensity = direct radiation / 1000 W/m²</b> from Open-Meteo (clear-sky fallback sin θ). Clouds matter through direct radiation; cloud % is display only. Weather is cached 30 min.</li>
     <li><b>Units:</b> sun avoidance 0–100 in UI and URL, ÷ 100 in the backend; sun % is already a percentage; cloud cover is 0–1. Angles in degrees, converted to radians for trig. Times are Toronto local.</li>
     <li><b>Coordinates:</b> Leaflet [lat, lon], GeoJSON [lon, lat], backend (x, y) metres.</li>
-    <li><b>Reliability:</b> 150 ms debounce, AbortController, stale routes dimmed, Retry, validated responses; backend caches make slider moves ~15 ms. Lint and build clean; 75 tests passed before the test files were removed.</li>
+    <li><b>Reliability:</b> 150 ms debounce, AbortController, stale routes dimmed, Retry, validated responses; backend caches make slider moves ~15 ms. Lint and build clean; 75 automated tests passed during development.</li>
   </ol>
   <div class="box warn" style="margin-top:14pt"><span class="t">And one honest sentence</span><p>"Detour models direct-sun exposure from real shadows and live weather; it does not yet model air temperature, humidity or individual tree sizes."</p></div>
+</section>
+
+<!-- ============================== 18 GLOSSARY ============================== -->
+<section class="chapter">
+  <h1><span class="num">18</span>Glossary</h1>
+  <table>
+    <tr><th style="width:24%">Term</th><th>Meaning</th></tr>
+    <tr><td><b>A*</b></td><td>Dijkstra's algorithm guided by a guess of the remaining cost, so it explores fewer nodes.</td></tr>
+    <tr><td><b>Admissible heuristic</b></td><td>A guess of the remaining cost that never overestimates it, so A* still finds the best route.</td></tr>
+    <tr><td><b>Azimuth (α)</b></td><td>Compass direction of the sun, in degrees clockwise from north.</td></tr>
+    <tr><td><b>Bicriteria search</b></td><td>A search that optimises two things at once (here cost and sun) and keeps every trade-off.</td></tr>
+    <tr><td><b>Casing</b></td><td>A wider white line drawn under a route so the coloured line stands out.</td></tr>
+    <tr><td><b>CORS</b></td><td>Browser rule for which websites may call an API; the backend allows only the Detour site and local development.</td></tr>
+    <tr><td><b>Debounce</b></td><td>Wait until input stops changing (150 ms) before acting, so dragging a slider sends one request.</td></tr>
+    <tr><td><b>Dijkstra's algorithm</b></td><td>Finds shortest paths by always expanding the cheapest unsettled node.</td></tr>
+    <tr><td><b>Direct radiation</b></td><td>Sunlight arriving straight from the sun (W/m²); the only part shade can block.</td></tr>
+    <tr><td><b>Edge</b></td><td>A walkway segment between two nodes, with a length and a shape.</td></tr>
+    <tr><td><b>Elevation (θ)</b></td><td>Height of the sun above the horizon, in degrees.</td></tr>
+    <tr><td><b>Endpoint</b></td><td>A URL the backend answers, e.g. /route.</td></tr>
+    <tr><td><b>GeoJSON</b></td><td>Standard JSON format for map shapes; coordinates are [longitude, latitude].</td></tr>
+    <tr><td><b>Graph G = (V, E)</b></td><td>A set of nodes V joined by edges E; the campus walkways.</td></tr>
+    <tr><td><b>Label</b></td><td>One partial route in the bicriteria search: its cost, sun and arrival time at a node.</td></tr>
+    <tr><td><b>Node (vertex)</b></td><td>A point where walkways meet or end.</td></tr>
+    <tr><td><b>Pareto set</b></td><td>All routes that no other route beats on both time and sun.</td></tr>
+    <tr><td><b>Projection (UTM 17N)</b></td><td>Turning latitude/longitude into flat x/y metres so lengths and shadows are in metres.</td></tr>
+    <tr><td><b>Rain-second</b></td><td>One second out in moderate rain (or more) with no roof.</td></tr>
+    <tr><td><b>Shade fraction f</b></td><td>Share of an edge's 1.5 m sample points that are in shadow.</td></tr>
+    <tr><td><b>Shelter fraction g</b></td><td>Share of an edge under a roof (inside a building, or a covered/indoor walkway).</td></tr>
+    <tr><td><b>SSR</b></td><td>Server-side rendering: HTML made on the server; the map is excluded because Leaflet needs a browser.</td></tr>
+    <tr><td><b>Stale</b></td><td>A shown answer that belongs to older settings; it is dimmed until the new one arrives.</td></tr>
+    <tr><td><b>STRtree</b></td><td>A spatial index (Shapely) for fast "which shapes are near this one?" queries.</td></tr>
+    <tr><td><b>Sun-second</b></td><td>One second in full-strength direct sun; half-strength sun for 2 s is also one sun-second.</td></tr>
+    <tr><td><b>Time slice</b></td><td>A 15-minute window; shadows are computed once per slice.</td></tr>
+    <tr><td><b>Trapezoid rule</b></td><td>Approximating an integral by averaging the start and end values times the duration.</td></tr>
+  </table>
 </section>
 
 </body>
